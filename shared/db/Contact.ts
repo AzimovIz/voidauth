@@ -25,5 +25,15 @@ export type ContactVerification = Pick<Audit, 'createdAt'> & {
   expiresAt: Date | number
 }
 
+export type ContactLog = Pick<Audit, 'createdAt'> & {
+  id: string
+  type: 'password_reset' | 'approved' | 'admin_notification'
+  contactType: ContactType
+  toUser?: string | null
+  subject: string
+  reasons?: string | null
+}
+
 const _typeCheckContact: DBColumnTypesCheck<UserContact> = true
 const _typeCheckVerification: DBColumnTypesCheck<ContactVerification> = true
+const _typeCheckLog: DBColumnTypesCheck<ContactLog> = true

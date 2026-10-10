@@ -1,3 +1,6 @@
+# Base image of the final stage, can be overridden for builds without access to dhi.io
+ARG SERVE_IMAGE=dhi.io/node:24-alpine
+
 #
 # Builder
 #
@@ -57,7 +60,7 @@ COPY --chmod=0777 ./migrations ./migrations
 # Serve files and api endpoints
 # Requires a login to dhi.io
 #
-FROM dhi.io/node:24-alpine AS serve
+FROM ${SERVE_IMAGE} AS serve
 
 WORKDIR /app
 

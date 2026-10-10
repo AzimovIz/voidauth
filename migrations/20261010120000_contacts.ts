@@ -28,9 +28,21 @@ export async function up(knex: Knex): Promise<void> {
 
     table.unique(['type', 'challenge'])
   })
+
+  // Log of messages sent to contacts, like email_log
+  await knex.schema.createTable('contact_log', (table) => {
+    table.uuid('id').primary().notNullable()
+    table.text('type').notNullable()
+    table.string('contactType', 32).notNullable()
+    table.uuid('toUser') // do not fk, this is a log table
+    table.text('subject').notNullable()
+    table.text('reasons') // optional, searchable text to narrow down if a message needs to be sent
+    table.timestamp('createdAt', { useTz: true }).notNullable()
+  })
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.schema.dropTable('contact_log')
   await knex.schema.dropTable('contact_verification')
   await knex.schema.dropTable('user_contact')
 }

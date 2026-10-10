@@ -3,6 +3,7 @@ import { Router } from 'express'
 import appConfig from '../util/config'
 import { sendPasswordReset, SMTP_VERIFIED } from '../util/email'
 import { isTelegramActive } from '../contacts/telegram'
+import { sendPasswordResetToContacts } from '../contacts/notifications'
 import type { PasswordReset } from '@shared/db/PasswordReset'
 import { getUserById, getUserByInput } from '../db/user'
 import { endUserSessions } from '../oidc/provider'
@@ -74,7 +75,7 @@ publicRouter.post('/send_password_reset',
     const passwordReset = await createPasswordReset(user.id)
 
     // If possible, send email
-    const result: SendPasswordResetResponse = { emailSent: false }
+    const result: SendPasswordResetResponse = { emailSent: false, contactSent: false }
     try {
       const email = user.email
       if (email && SMTP_VERIFIED && (!appConfig.EMAIL_VERIFICATION || user.emailVerified)) {
@@ -88,6 +89,9 @@ publicRouter.post('/send_password_reset',
         errors: e instanceof Error ? [e] : [{ message: String(e) }],
       })
     }
+
+    // Also send to the users verified contacts
+    result.contactSent = !!await sendPasswordResetToContacts(passwordReset, user)
 
     res.send(result)
   })

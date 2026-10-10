@@ -48,6 +48,7 @@ import { getCustomClaimDetails, getCustomClaimsRecords, getGroupsCustomClaims } 
 import type { ClientMetadata } from 'oidc-provider'
 import type { CustomClaimDetails } from '@shared/api-response/admin/CustomClaimDetails'
 import type { DeepWritable } from '@shared/utils'
+import { sendApprovedToContacts, sendPasswordResetToContacts } from '../contacts/notifications'
 
 export const adminRouter = Router()
 
@@ -573,6 +574,9 @@ adminRouter.patch('/user',
         }
       }
     }
+    if (!existingUser.approved && userUpdate.approved) {
+      await sendApprovedToContacts(userUpdate)
+    }
 
     res.send()
   })
@@ -665,6 +669,7 @@ adminRouter.patch('/users/approve',
           })
         }
       }
+      await sendApprovedToContacts(user)
     }
 
     res.send()
@@ -1153,8 +1158,14 @@ adminRouter.post('/send_passwordreset/:id',
 
     const user = await getUserById(reset.userId)
 
-    if (!user?.email) {
+    if (!user) {
       res.sendStatus(400)
+      return
+    }
+
+    const contactSent = await sendPasswordResetToContacts(reset, user)
+    if (!user.email) {
+      res.sendStatus(contactSent ? 200 : 400)
       return
     }
 

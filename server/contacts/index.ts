@@ -1,4 +1,7 @@
-import type { ContactType, UserContact } from '@shared/db/Contact'
+import { randomUUID } from 'node:crypto'
+import { TABLES } from '@shared/db'
+import type { ContactLog, ContactType, UserContact } from '@shared/db/Contact'
+import { db } from '../db/db'
 import { getUserContacts } from '../db/contacts'
 import { logger } from '../util/logger'
 import type { ContactChannel, ContactMessage } from './channel'
@@ -21,10 +24,14 @@ export function isActiveContact(contact: Pick<UserContact, 'type'>) {
 }
 
 /**
- * Send a message to every verified contact of a user on an active channel
+ * Send a message to every verified contact of a user on an active channel, and log each sent message
  * @returns the number of contacts the message was sent to
  */
-export async function sendToUserContacts(userId: string, message: ContactMessage): Promise<number> {
+export async function sendToUserContacts(
+  userId: string,
+  message: ContactMessage,
+  log: Pick<ContactLog, 'type' | 'reasons'>,
+): Promise<number> {
   let sent = 0
   for (const contact of await getUserContacts(userId)) {
     const channel = channels[contact.type]
@@ -41,7 +48,19 @@ export async function sendToUserContacts(userId: string, message: ContactMessage
         message: `Error occurred while sending message to ${contact.type} contact.`,
         errors: e instanceof Error ? [e] : [{ message: String(e) }],
       })
+      continue
     }
+
+    const contactLog: ContactLog = {
+      id: randomUUID(),
+      type: log.type,
+      contactType: contact.type,
+      toUser: userId,
+      subject: message.subject,
+      reasons: log.reasons,
+      createdAt: new Date(),
+    }
+    await db().table<ContactLog>(TABLES.CONTACT_LOG).insert(contactLog)
   }
   return sent
 }

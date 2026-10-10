@@ -19,6 +19,7 @@ import { sensitiveRateLimit, standardRateLimit } from '../util/rateLimit'
 import { FORBIDDEN_PATHS, NOT_FOUND_PATHS } from '@shared/constants'
 import { startLDAPServer } from '../ldap/server'
 import { startContactChannels } from '../contacts'
+import { sendAdminContactNotifications } from '../contacts/notifications'
 import * as proxyAddr from 'proxy-addr'
 
 declare global {
@@ -409,6 +410,19 @@ export async function serve() {
         logger({
           level: 'error',
           message: 'Error occurred while sending admin notifications',
+          errors: e instanceof Error ? [e] : [{ message: String(e) }],
+        })
+      } finally {
+        purgeAsyncLog()
+      }
+
+      // Send admin notifications to contacts
+      try {
+        await sendAdminContactNotifications()
+      } catch (e) {
+        logger({
+          level: 'error',
+          message: 'Error occurred while sending admin contact notifications',
           errors: e instanceof Error ? [e] : [{ message: String(e) }],
         })
       } finally {

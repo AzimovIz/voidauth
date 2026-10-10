@@ -27,6 +27,7 @@ export const TABLES = {
   INVITATION_CUSTOM_CLAIM: 'invitation_custom_claim',
   USER_CONTACT: 'user_contact',
   CONTACT_VERIFICATION: 'contact_verification',
+  CONTACT_LOG: 'contact_log',
 } as const
 
 export const TABLES_ORDER: ValueOf<typeof TABLES>[] = [
@@ -56,6 +57,7 @@ export const TABLES_ORDER: ValueOf<typeof TABLES>[] = [
   TABLES.INVITATION_CUSTOM_CLAIM,
   TABLES.USER_CONTACT,
   TABLES.CONTACT_VERIFICATION,
+  TABLES.CONTACT_LOG,
 ] as const
 
 if (!Object.values(TABLES).every(t => TABLES_ORDER.includes(t))) {

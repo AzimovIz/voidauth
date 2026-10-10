@@ -109,7 +109,8 @@ export class RegistrationComponent implements OnInit {
 
       try {
         this.spinnerService.show()
-        if (this.config.emailVerification) {
+        // Email is only required when it is the only way to verify
+        if (this.config.emailVerification && this.config.contactVerification.every(t => t === 'email')) {
           this.form.controls.email.addValidators(Validators.required)
           this.form.controls.email.updateValueAndValidity()
         }

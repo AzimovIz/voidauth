@@ -6,6 +6,7 @@ import type { UpdatePassword } from '@shared/api-request/UpdatePassword'
 import { firstValueFrom } from 'rxjs'
 import type { CurrentUserDetails, CurrentUserPrivateDetails } from '@shared/api-response/UserDetails'
 import type { PasskeyResponse } from '@shared/api-response/PasskeyResponse'
+import type { ContactLinkResponse, ContactResponse } from '@shared/api-response/ContactResponse'
 
 @Injectable({
   providedIn: 'root',
@@ -50,6 +51,18 @@ export class UserService {
 
   async updateEmail(emailUpdate: UpdateEmail) {
     return firstValueFrom(this.http.patch<{ sentVerification: boolean }>('/api/user/email', emailUpdate))
+  }
+
+  async getContacts() {
+    return firstValueFrom(this.http.get<ContactResponse[]>('/api/user/contacts'))
+  }
+
+  async createTelegramLink() {
+    return firstValueFrom(this.http.post<ContactLinkResponse>('/api/user/contacts/telegram/link', {}))
+  }
+
+  async removeContact(contact_id: string) {
+    return firstValueFrom(this.http.delete<null>(`/api/user/contacts/${contact_id}`))
   }
 
   async passwordStrength(password: string) {

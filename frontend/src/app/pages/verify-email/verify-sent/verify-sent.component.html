@@ -3,40 +3,78 @@
     <mat-card-title>
       @if (sent) {
         {{ "verify-email.verify-sent.title.verification-email-sent" | translate }}
-      } @else {
+      } @else if (emailAllowed && !telegramAllowed) {
         {{ "verify-email.verify-sent.title.email-verification-required" | translate }}
+      } @else {
+        {{ "verify-email.verify-sent.title.verification-required" | translate }}
       }
     </mat-card-title>
   </mat-card-header>
   <mat-card-content>
-    <mat-icon align="center" style="width: 100px; height: 100px; font-size: 100px" fontSet="material-icons-round" matSuffix>mail</mat-icon>
+    <mat-icon align="center" style="width: 100px; height: 100px; font-size: 100px" fontSet="material-icons-round" matSuffix>{{
+      emailAllowed ? "mail" : "verified_user"
+    }}</mat-icon>
 
-    <form [formGroup]="emailForm" (ngSubmit)="updateEmailOrSendVerification()">
-      @if (currentUser && !currentUser.hasEmail) {
-        <mat-form-field>
-          <mat-label>{{ "verify-email.verify-sent.email.label" | translate }}</mat-label>
-          <input matInput type="text" formControlName="email" />
-          @if (emailForm.controls.email.errors) {
-            <mat-error>{{ emailForm.controls.email.errors | validationError | async }}</mat-error>
+    @if (emailAllowed) {
+      <form [formGroup]="emailForm" (ngSubmit)="updateEmailOrSendVerification()">
+        @if (currentUser && !currentUser.hasEmail) {
+          <mat-form-field>
+            <mat-label>{{ "verify-email.verify-sent.email.label" | translate }}</mat-label>
+            <input matInput type="text" formControlName="email" />
+            @if (emailForm.controls.email.errors) {
+              <mat-error>{{ emailForm.controls.email.errors | validationError | async }}</mat-error>
+            }
+          </mat-form-field>
+        }
+
+        <mat-card-actions>
+          @if (!telegramAllowed) {
+            <a mat-button [href]="host + '/oidc/session/end'">{{ "verify-email.verify-sent.actions.logout" | translate }}</a>
           }
-        </mat-form-field>
+          <button
+            mat-flat-button
+            type="submit"
+            [disabled]="!currentUser || (!currentUser.hasEmail && (!emailForm.enabled || !emailForm.valid || !emailForm.dirty))"
+          >
+            @if (sent) {
+              {{ "verify-email.verify-sent.actions.send-again" | translate }}
+            } @else {
+              {{ "verify-email.verify-sent.actions.send-verification" | translate }}
+            }
+          </button>
+        </mat-card-actions>
+      </form>
+    }
+
+    @if (telegramAllowed) {
+      @if (emailAllowed) {
+        <app-text-divider text="{{ 'components.common.or' | translate }}" disabled></app-text-divider>
+      }
+
+      <p>{{ "verify-email.verify-sent.telegram.description" | translate }}</p>
+      @if (telegramLink) {
+        <p>{{ "verify-email.verify-sent.telegram.waiting" | translate }}</p>
       }
 
       <mat-card-actions>
         <a mat-button [href]="host + '/oidc/session/end'">{{ "verify-email.verify-sent.actions.logout" | translate }}</a>
-        <button
-          mat-flat-button
-          type="submit"
-          [disabled]="!currentUser || (!currentUser.hasEmail && (!emailForm.enabled || !emailForm.valid || !emailForm.dirty))"
-        >
-          @if (sent) {
-            {{ "verify-email.verify-sent.actions.send-again" | translate }}
-          } @else {
-            {{ "verify-email.verify-sent.actions.send-verification" | translate }}
-          }
-        </button>
+        @if (telegramLink) {
+          <a mat-flat-button [href]="telegramLink.url" target="_blank" rel="noopener">
+            {{ "verify-email.verify-sent.actions.open-telegram" | translate }}
+          </a>
+        } @else {
+          <button mat-flat-button type="button" [disabled]="!currentUser" (click)="linkTelegram()">
+            {{ "verify-email.verify-sent.actions.link-telegram" | translate }}
+          </button>
+        }
       </mat-card-actions>
-    </form>
+    }
+
+    @if (!emailAllowed && !telegramAllowed) {
+      <mat-card-actions>
+        <a mat-button [href]="host + '/oidc/session/end'">{{ "verify-email.verify-sent.actions.logout" | translate }}</a>
+      </mat-card-actions>
+    }
   </mat-card-content>
 </mat-card>
 

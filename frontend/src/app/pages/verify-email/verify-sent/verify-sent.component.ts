@@ -1,4 +1,4 @@
-import { Component, inject, type OnInit, ChangeDetectionStrategy } from '@angular/core'
+import { Component, inject, type OnInit, type OnDestroy, ChangeDetectionStrategy } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import { MaterialModule } from '../../../material-module'
 import { HttpErrorResponse } from '@angular/common/http'
@@ -14,16 +14,23 @@ import { ValidationErrorPipe } from '../../../pipes/ValidationErrorPipe'
 import type { CurrentUserDetails } from '@shared/api-response/UserDetails'
 import { AsyncPipe } from '@angular/common'
 import { REDIRECT_PATHS } from '@shared/constants'
+import { AuthService } from '../../../services/auth.service'
+import { TextDividerComponent } from '../../../components/text-divider/text-divider.component'
+import type { ContactLinkResponse } from '@shared/api-response/ContactResponse'
+
+const CONTACT_POLL_INTERVAL = 3000 // ms
 
 @Component({
   selector: 'app-verify-sent',
-  imports: [MaterialModule, TranslatePipe, ReactiveFormsModule, ValidationErrorPipe, AsyncPipe],
+  imports: [MaterialModule, TranslatePipe, ReactiveFormsModule, ValidationErrorPipe, AsyncPipe, TextDividerComponent],
   templateUrl: './verify-sent.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './verify-sent.component.scss',
 })
-export class VerifySentComponent implements OnInit {
+export class VerifySentComponent implements OnInit, OnDestroy {
   sent: boolean = false
+  telegramLink?: ContactLinkResponse
+  private contactPoll?: ReturnType<typeof setInterval>
   config?: ConfigResponse
   host = getCurrentHost()
   currentUser?: CurrentUserDetails
@@ -44,6 +51,7 @@ export class VerifySentComponent implements OnInit {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private configService = inject(ConfigService)
+  private authService = inject(AuthService)
 
   async ngOnInit() {
     this.activatedRoute.queryParamMap.subscribe((queryParams) => {
@@ -57,6 +65,20 @@ export class VerifySentComponent implements OnInit {
     } finally {
       this.spinnerService.hide()
     }
+  }
+
+  ngOnDestroy() {
+    this.stopContactPoll()
+  }
+
+  // email can be used for verification
+  get emailAllowed() {
+    return !!this.config?.emailVerification
+  }
+
+  // telegram can be used for verification
+  get telegramAllowed() {
+    return !!this.config?.telegramActive && this.config.contactVerification.includes('telegram')
   }
 
   private async loadUser() {
@@ -139,6 +161,72 @@ export class VerifySentComponent implements OnInit {
       await this.sendVerification()
     } else {
       await this.updateEmail()
+    }
+  }
+
+  async linkTelegram() {
+    try {
+      this.spinnerService.show()
+      this.telegramLink = await this.userService.createTelegramLink()
+      this.startContactPoll()
+    } catch (e) {
+      console.error(e)
+      this.snackbarService.error('Could not create Telegram link.')
+    } finally {
+      this.spinnerService.hide()
+    }
+  }
+
+  // Wait for the user to link their telegram, then continue login
+  private startContactPoll() {
+    this.stopContactPoll()
+    this.contactPoll = setInterval(async () => {
+      if (this.telegramLink && new Date(this.telegramLink.expiresAt) < new Date()) {
+        this.stopContactPoll()
+        this.telegramLink = undefined
+        return
+      }
+
+      try {
+        const user = await this.userService.getMyUser({ disableCache: true })
+        if (user.contactTypes.includes('telegram')) {
+          this.stopContactPoll()
+          this.snackbarService.message('Telegram linked.')
+          await this.continueLogin()
+        }
+      } catch (_e) {
+        // try again on next interval
+      }
+    }, CONTACT_POLL_INTERVAL)
+  }
+
+  private stopContactPoll() {
+    if (this.contactPoll) {
+      clearInterval(this.contactPoll)
+      this.contactPoll = undefined
+    }
+  }
+
+  private async continueLogin() {
+    try {
+      this.spinnerService.show()
+      try {
+        await this.authService.interactionExists()
+      } catch (_e) {
+        // No interaction to continue, go to the home page
+        await this.router.navigate(['/'])
+        return
+      }
+
+      try {
+        const result = await this.authService.interactionTryAgain()
+        this.spinnerService.show(true)
+        window.location.assign(result.location)
+      } catch (_e) {
+        await this.router.navigate(['/'])
+      }
+    } finally {
+      this.spinnerService.hide()
     }
   }
 }

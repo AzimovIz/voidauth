@@ -202,15 +202,22 @@
     "verify-sent": {
       "title": {
         "verification-email-sent": "Verification Email Sent",
-        "email-verification-required": "Email Verification Required"
+        "email-verification-required": "Email Verification Required",
+        "verification-required": "Verification Required"
       },
       "actions": {
         "logout": "Logout",
         "send-again": "Send Again",
-        "send-verification": "Send Verification"
+        "send-verification": "Send Verification",
+        "link-telegram": "Link Telegram",
+        "open-telegram": "Open Telegram"
       },
       "email": {
         "label": "Email"
+      },
+      "telegram": {
+        "description": "Link your Telegram account to verify your account.",
+        "waiting": "Open the link in Telegram and press Start. This page will continue automatically."
       }
     }
   },

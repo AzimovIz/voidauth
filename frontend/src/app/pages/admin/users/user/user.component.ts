@@ -19,6 +19,8 @@ import { stringCompare, type Convert, type ItemIn } from '@shared/utils'
 import { isValidEmail } from '../../../../validators/validators'
 import { TranslatePipe } from '@ngx-translate/core'
 import { calculateCustomClaims } from '@shared/user'
+import { ConfigService } from '../../../../services/config.service'
+import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 
 @Component({
   selector: 'app-user',
@@ -31,6 +33,7 @@ export class UserComponent implements OnInit {
   public me?: CurrentUserDetails
   public id: string | null = null
   public contactTypes: UserDetails['contactTypes'] = []
+  public config?: ConfigResponse
 
   public availableGroups: ItemIn<UserUpdate['groups']>[] = []
   public unselectedGroups: ItemIn<UserUpdate['groups']>[] = []
@@ -62,6 +65,7 @@ export class UserComponent implements OnInit {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private configService = inject(ConfigService)
 
   ngOnInit() {
     this.route.paramMap.subscribe(async (params) => {
@@ -69,6 +73,7 @@ export class UserComponent implements OnInit {
         this.spinnerService.show()
 
         this.me = await this.userService.getMyUser()
+        this.config = await this.configService.getConfig()
 
         this.id = params.get('id')
 

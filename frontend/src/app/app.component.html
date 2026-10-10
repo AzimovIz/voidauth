@@ -42,10 +42,12 @@
               ><mat-icon fontSet="material-icons-round" matListItemIcon>lock_reset</mat-icon
               >{{ "app.navigation.admin.password-resets" | translate }}</a
             >
-            <a mat-list-item routerLink="/admin/emails"
-              ><mat-icon fontSet="material-icons-round" matListItemIcon>outbox</mat-icon
-              >{{ "app.navigation.admin.sent-mail" | translate }}</a
-            >
+            @if (config?.emailActive) {
+              <a mat-list-item routerLink="/admin/emails"
+                ><mat-icon fontSet="material-icons-round" matListItemIcon>outbox</mat-icon
+                >{{ "app.navigation.admin.sent-mail" | translate }}</a
+              >
+            }
             <mat-divider></mat-divider>
           }
         }

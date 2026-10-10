@@ -19,6 +19,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { HumanDurationPipe } from '../../../pipes/HumanDurationPipe'
 import { LooseAsyncPipe } from '../../../pipes/LooseAsyncPipe'
 import { TableService } from '../../../services/table.service'
+import { ConfigService } from '../../../services/config.service'
 
 @Component({
   selector: 'app-users',
@@ -78,6 +79,7 @@ export class UsersComponent {
   private adminService = inject(AdminService)
   private snackbarService = inject(SnackbarService)
   private userService = inject(UserService)
+  private configService = inject(ConfigService)
   private spinnerService = inject(SpinnerService)
   readonly dialog = inject(MatDialog)
   readonly tableService = inject(TableService)
@@ -91,6 +93,12 @@ export class UsersComponent {
       }
 
       this.me = await this.userService.getMyUser()
+
+      // Email verified is meaningless when email can not be verified
+      const config = await this.configService.getConfig()
+      if (!config.emailActive && !config.emailVerification) {
+        this.displayedColumns = this.displayedColumns.filter(c => c !== 'emailVerified')
+      }
 
       this.paginator().page.subscribe(async (event) => {
         this.tableService.currentPageSize = event.pageSize

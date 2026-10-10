@@ -186,12 +186,11 @@ export class PasswordResetsComponent {
 
   async sendEmail(reset: PasswordResetUser) {
     try {
-      if (!reset.email) {
-        throw new Error('User does not have email address.')
-      }
       this.spinnerService.show()
       await this.adminService.sendPasswordReset(reset.id)
-      this.snackbarService.message(`Password reset link sent to ${reset.email}.`)
+      this.snackbarService.message(reset.email && this.config?.emailActive
+        ? `Password reset link sent to ${reset.email}.`
+        : 'Password reset link sent.')
     } catch (_e) {
       this.snackbarService.error('Could not send password reset link.')
     } finally {

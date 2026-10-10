@@ -7,7 +7,8 @@ import { MaterialModule } from './material-module'
 import { UserService } from './services/user.service'
 import type { CurrentUserDetails } from '@shared/api-response/UserDetails'
 import { SpinnerService } from './services/spinner.service'
-import { getCurrentHost } from './services/config.service'
+import { ConfigService, getCurrentHost } from './services/config.service'
+import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { TranslationService } from './services/translation.service'
 
 @Component({
@@ -19,9 +20,11 @@ import { TranslationService } from './services/translation.service'
 })
 export class AppComponent implements OnInit {
   user?: CurrentUserDetails
+  config?: ConfigResponse
   host = getCurrentHost()
 
   private userService = inject(UserService)
+  private configService = inject(ConfigService)
   private spinnerService = inject(SpinnerService)
   private translate = inject(TranslateService)
   private translationService = inject(TranslationService)
@@ -37,6 +40,7 @@ export class AppComponent implements OnInit {
     try {
       this.spinnerService.show()
       this.user = await this.userService.getMyUser()
+      this.config = await this.configService.getConfig()
     } catch (_e) {
       // user just isn't logged in
     } finally {

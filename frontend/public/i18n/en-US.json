@@ -473,7 +473,8 @@
       "tooltips": {
         "send-email": "Send Email To {{email}}",
         "copy-link": "Copy Link",
-        "delete": "Delete"
+        "delete": "Delete",
+        "send-contacts": "Send to the user's contacts"
       },
       "messages": {
         "link-copied": "Reset link copied to clipboard."

@@ -31,25 +31,25 @@
               {{ "admin.invitation.actions.share-telegram" | translate }}
             </a>
           }
-          @if (!config?.emailActive) {
-            <p>{{ "admin.invitation.messages.email-not-verified" | translate }}</p>
-          } @else if (!inviteEmail) {
-            <p>{{ "admin.invitation.messages.no-email" | translate }}</p>
-          } @else {
-            <button
-              mat-button
-              type="button"
-              disabledInteractive
-              [matTooltip]="
-                form.dirty
-                  ? ('admin.invitation.tooltips.unsaved-changes' | translate)
-                  : ('admin.invitation.tooltips.send-to' | translate: { email: inviteEmail })
-              "
-              [disabled]="form.dirty"
-              (click)="sendEmail()"
-            >
-              {{ "admin.invitation.actions.send" | translate }}
-            </button>
+          @if (config?.emailActive) {
+            @if (!inviteEmail) {
+              <p>{{ "admin.invitation.messages.no-email" | translate }}</p>
+            } @else {
+              <button
+                mat-button
+                type="button"
+                disabledInteractive
+                [matTooltip]="
+                  form.dirty
+                    ? ('admin.invitation.tooltips.unsaved-changes' | translate)
+                    : ('admin.invitation.tooltips.send-to' | translate: { email: inviteEmail })
+                "
+                [disabled]="form.dirty"
+                (click)="sendEmail()"
+              >
+                {{ "admin.invitation.actions.send" | translate }}
+              </button>
+            }
           }
         </mat-card-actions>
       </form>
@@ -79,10 +79,12 @@
       </mat-form-field>
 
       <!-- Tricky set false while disabled, while keeping previous value -->
-      @if (form.controls.emailVerified.enabled) {
-        <mat-checkbox formControlName="emailVerified">{{ "admin.invitation.checkboxes.email-verified" | translate }}</mat-checkbox>
-      } @else {
-        <mat-checkbox disabled>{{ "admin.invitation.checkboxes.email-verified" | translate }}</mat-checkbox>
+      @if (config?.emailActive || config?.emailVerification) {
+        @if (form.controls.emailVerified.enabled) {
+          <mat-checkbox formControlName="emailVerified">{{ "admin.invitation.checkboxes.email-verified" | translate }}</mat-checkbox>
+        } @else {
+          <mat-checkbox disabled>{{ "admin.invitation.checkboxes.email-verified" | translate }}</mat-checkbox>
+        }
       }
 
       <mat-form-field>

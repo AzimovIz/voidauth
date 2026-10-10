@@ -1,0 +1,35 @@
+:host {
+  display: contents;
+}
+
+mat-divider {
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+  min-width: calc(var(--form-min-width) * 0.8);
+  max-width: calc(var(--form-max-width) * 0.8);
+}
+
+h2 {
+  margin-top: -16px;
+}
+
+.contact {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.contact-value {
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

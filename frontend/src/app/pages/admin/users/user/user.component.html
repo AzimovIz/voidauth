@@ -28,6 +28,10 @@
 
       <mat-checkbox formControlName="emailVerified">{{ "admin.common.labels.email-verified" | translate }}</mat-checkbox>
 
+      @if (contactTypes.includes("telegram")) {
+        <mat-checkbox [checked]="true" disabled>{{ "admin.user.labels.telegram-linked" | translate }}</mat-checkbox>
+      }
+
       <mat-list [ngClass]="{ invalid: form.controls.groups.errors }">
         <mat-form-field>
           <mat-label>{{ "admin.user.labels.add-group" | translate }}</mat-label>

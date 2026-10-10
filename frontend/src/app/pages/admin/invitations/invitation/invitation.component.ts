@@ -287,6 +287,11 @@ export class InvitationComponent implements OnInit {
     }
   }
 
+  // Telegram share dialog with the invite link, the admin picks who to send it to
+  get telegramShareLink() {
+    return this.inviteLink ? `https://t.me/share/url?url=${encodeURIComponent(this.inviteLink)}` : undefined
+  }
+
   onCopyInviteLink() {
     this.snackbarService.message(String(this.translateService.instant('admin.invitation.messages.link-copied')))
   }

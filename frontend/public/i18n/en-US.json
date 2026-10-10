@@ -244,6 +244,21 @@
               "label": "Update Email"
             }
           }
+        },
+        "contacts": {
+          "title": "Contacts",
+          "linked": "Linked",
+          "not-linked": "Not linked",
+          "telegram": {
+            "link": "Link",
+            "open": "Open Telegram",
+            "waiting": "Open the link in Telegram and press Start"
+          },
+          "actions": {
+            "unlink": {
+              "tooltip": "Unlink"
+            }
+          }
         }
       },
       "security": {
@@ -365,7 +380,8 @@
         "value": "Value",
         "no-custom-claims": "No custom claims configured.",
         "group": "Group",
-        "applied": "Applied"
+        "applied": "Applied",
+        "telegram-linked": "Telegram Linked"
       },
       "actions": {
         "sign-out": "Sign Out"
@@ -537,7 +553,8 @@
         "no-email": "Cannot email invitation link, invite does not include an email address."
       },
       "actions": {
-        "send": "Send Invite"
+        "send": "Send Invite",
+        "share-telegram": "Share via Telegram"
       },
       "checkboxes": {
         "email-verified": "Email Verified"

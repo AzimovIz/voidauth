@@ -26,6 +26,11 @@
           </button>
         </mat-form-field>
         <mat-card-actions>
+          @if (config?.telegramActive && telegramShareLink) {
+            <a mat-button [href]="telegramShareLink" target="_blank" rel="noopener">
+              {{ "admin.invitation.actions.share-telegram" | translate }}
+            </a>
+          }
           @if (!config?.emailActive) {
             <p>{{ "admin.invitation.messages.email-not-verified" | translate }}</p>
           } @else if (!inviteEmail) {

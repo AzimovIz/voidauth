@@ -30,6 +30,7 @@ import { calculateCustomClaims } from '@shared/user'
 export class UserComponent implements OnInit {
   public me?: CurrentUserDetails
   public id: string | null = null
+  public contactTypes: UserDetails['contactTypes'] = []
 
   public availableGroups: ItemIn<UserUpdate['groups']>[] = []
   public unselectedGroups: ItemIn<UserUpdate['groups']>[] = []
@@ -76,6 +77,7 @@ export class UserComponent implements OnInit {
         }
 
         const user = await this.adminService.user(this.id)
+        this.contactTypes = user.contactTypes
 
         this.form.reset({
           username: user.username,

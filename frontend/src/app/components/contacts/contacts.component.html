@@ -1,0 +1,38 @@
+@if (visible) {
+  <mat-divider class="disabled"></mat-divider>
+
+  <h2>{{ "settings.sections.profile.contacts.title" | translate }}</h2>
+
+  <div class="contact">
+    <mat-icon fontSet="material-icons-round">send</mat-icon>
+    <div class="contact-info">
+      <span class="contact-type">Telegram</span>
+      @if (telegram) {
+        <span class="contact-value">{{ telegram.displayName ?? ("settings.sections.profile.contacts.linked" | translate) }}</span>
+      } @else if (telegramLink) {
+        <span class="contact-value">{{ "settings.sections.profile.contacts.telegram.waiting" | translate }}</span>
+      } @else {
+        <span class="contact-value">{{ "settings.sections.profile.contacts.not-linked" | translate }}</span>
+      }
+    </div>
+
+    @if (telegram) {
+      <button
+        mat-icon-button
+        type="button"
+        (click)="removeContact(telegram)"
+        [matTooltip]="'settings.sections.profile.contacts.actions.unlink.tooltip' | translate"
+      >
+        <mat-icon fontSet="material-icons-round">link_off</mat-icon>
+      </button>
+    } @else if (telegramLink) {
+      <a mat-flat-button [href]="telegramLink.url" target="_blank" rel="noopener">
+        {{ "settings.sections.profile.contacts.telegram.open" | translate }}
+      </a>
+    } @else {
+      <button mat-flat-button type="button" [disabled]="!config?.telegramActive" (click)="linkTelegram()">
+        {{ "settings.sections.profile.contacts.telegram.link" | translate }}
+      </button>
+    }
+  </div>
+}

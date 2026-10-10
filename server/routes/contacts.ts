@@ -5,6 +5,7 @@ import { zodValidate } from '../util/zodValidate'
 import { deleteUserContact, getUserContacts } from '../db/contacts'
 import { createTelegramLink } from '../contacts/telegram'
 import type { ContactResponse } from '@shared/api-response/ContactResponse'
+import { isUnverifiedUser } from '../util/auth'
 
 export const contactsRouter = Router()
 
@@ -62,11 +63,21 @@ contactsRouter.delete('/:id',
       return
     }
 
-    const deleted = await deleteUserContact(user.id, req.params.id)
-    if (!deleted) {
+    const contacts = await getUserContacts(user.id)
+    const contact = contacts.find(c => c.id === req.params.id)
+    if (!contact) {
       res.sendStatus(404)
       return
     }
+
+    // Do not remove the last contact the user is verified with, they would not be able to login again
+    const contactTypes = contacts.filter(c => c.id !== contact.id).map(c => c.type)
+    if (!isUnverifiedUser(user) && isUnverifiedUser({ ...user, contactTypes })) {
+      res.status(400).send({ message: 'Cannot unlink the only contact your account is verified with.' })
+      return
+    }
+
+    await deleteUserContact(user.id, contact.id)
 
     res.send()
   })

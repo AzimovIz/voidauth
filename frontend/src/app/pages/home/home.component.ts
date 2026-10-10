@@ -24,10 +24,14 @@ import { MatTableDataSource } from '@angular/material/table'
 import type { TableColumn } from '../admin/clients/clients.component'
 import { MatSort } from '@angular/material/sort'
 import { CommonModule } from '@angular/common'
+import { ContactsComponent } from '../../components/contacts/contacts.component'
 
 @Component({
   selector: 'app-home',
-  imports: [ReactiveFormsModule, MaterialModule, ValidationErrorPipe, PasswordSetComponent, TranslatePipe, AsyncPipe, CommonModule],
+  imports: [
+    ReactiveFormsModule, MaterialModule, ValidationErrorPipe, PasswordSetComponent,
+    TranslatePipe, AsyncPipe, CommonModule, ContactsComponent,
+  ],
   templateUrl: './home.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home.component.scss',

@@ -25,8 +25,10 @@ function blockedByUnverifiedEmail(user: UserDetails) {
  * Determines if a user can login.
  * Checks that session has required factors, user is approved, and email is verified (if required)
  */
+type LoginCheckKeys = 'mfaRequired' | 'hasMfaGroup' | 'hasTotp' | 'hasEmail' | 'emailVerified' | 'approved' | 'isAdmin' | 'contactTypes'
+
 export function userCanLogin(
-  user: Pick<UserDetails, 'mfaRequired' | 'hasMfaGroup' | 'hasTotp' | 'hasEmail' | 'emailVerified' | 'approved' | 'isAdmin' | 'contactTypes'> | undefined,
+  user: Pick<UserDetails, LoginCheckKeys> | undefined,
   amr: amrFactor[],
 ): user is UserDetails {
   if (!user) {

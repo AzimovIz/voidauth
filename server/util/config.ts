@@ -73,6 +73,9 @@ class Config {
   SMTP_TLS_CIPHERS?: string
   SMTP_TLS_MIN_VERSION?: SecureVersion
 
+  // Telegram
+  TELEGRAM_BOT_TOKEN?: string
+
   // LDAP
   LDAP_ENABLED: boolean = false
   LDAP_PORT: number = 3890
@@ -152,6 +155,7 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SMTP_USER':
     case 'SMTP_PASS':
     case 'SMTP_TLS_CIPHERS':
+    case 'TELEGRAM_BOT_TOKEN':
     case 'LDAP_BIND_PASSWORD':
     case 'LDAP_TLS_CERT_FILE':
     case 'LDAP_TLS_KEY_FILE':

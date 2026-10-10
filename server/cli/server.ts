@@ -18,6 +18,7 @@ import { logger, purgeAsyncLog } from '../util/logger'
 import { sensitiveRateLimit, standardRateLimit } from '../util/rateLimit'
 import { FORBIDDEN_PATHS, NOT_FOUND_PATHS } from '@shared/constants'
 import { startLDAPServer } from '../ldap/server'
+import { startContactChannels } from '../contacts'
 import * as proxyAddr from 'proxy-addr'
 
 declare global {
@@ -38,6 +39,7 @@ export async function serve() {
   if (appConfig.LDAP_ENABLED) {
     startLDAPServer()
   }
+  startContactChannels()
 
   const app = express()
 

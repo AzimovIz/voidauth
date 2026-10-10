@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { getInteractionDetails, router as interactionRouter } from './interaction'
 import { getUserById } from '../db/user'
 import { userRouter } from './user'
+import { contactsRouter } from './contacts'
 import { adminRouter } from './admin'
 import type { CurrentUserPrivateDetails, UserDetails } from '@shared/api-response/UserDetails'
 import { authRouter } from './auth'
@@ -151,6 +152,8 @@ router.use('/public', publicRouter)
 router.use('/auth', authRouter)
 
 router.use('/interaction', interactionRouter)
+
+router.use('/user/contacts', contactsRouter)
 
 router.use('/user', userRouter)
 

@@ -42,6 +42,7 @@ jobs:
       - name: Publish image
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REGISTRY: ${{ vars.REGISTRY }}
           SERVER_URL: ${{ forgejo.server_url }}
           OWNER: ${{ forgejo.repository_owner }}
           VERSION: ${{ steps.meta.outputs.version }}
@@ -51,7 +52,18 @@ jobs:
             echo "REGISTRY_TOKEN secret is not set, the image is only kept on the runner host."
             exit 0
           fi
-          registry="${SERVER_URL#*://}"
+          # The registry is named after the Forgejo ROOT_URL host, which can differ from the address the
+          # runner uses (SERVER_URL). Take it from the token realm Forgejo advertises, unless REGISTRY is set.
+          registry="$REGISTRY"
+          if [ -z "$registry" ]; then
+            realm="$(curl -sS -o /dev/null -D - "${SERVER_URL}/v2/" | sed -n 's/.*realm="\([^"]*\)".*/\1/Ip')"
+            registry="$(echo "$realm" | sed -E 's#^https?://##; s#/.*##')"
+          fi
+          if [ -z "$registry" ]; then
+            echo "::error::Could not detect the container registry, set the REGISTRY repository variable."
+            exit 1
+          fi
+          echo "Publishing to registry ${registry}"
           image="${registry}/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/voidauth"
           echo "$REGISTRY_TOKEN" | docker login "$registry" -u "$OWNER" --password-stdin
           for tag in contacts "${VERSION}-contacts-${SHA}"; do

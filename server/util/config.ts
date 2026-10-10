@@ -77,6 +77,7 @@ class Config {
 
   // Telegram
   TELEGRAM_BOT_TOKEN?: string
+  TELEGRAM_RETRY_COUNT: number = 5
 
   // LDAP
   LDAP_ENABLED: boolean = false
@@ -108,6 +109,11 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     // APP_PORT must be a positive integer or a non-empty string (for unix socket)
     case 'APP_PORT':
       appConfig[key] = posInt(value) ?? (stringOnly(value) || null) ?? appConfig[key]
+      break
+
+    // non-negative ints
+    case 'TELEGRAM_RETRY_COUNT':
+      appConfig[key] = (value?.trim() === '0' ? 0 : posInt(value)) ?? appConfig[key]
       break
 
     case 'ADMIN_EMAILS':

@@ -10,8 +10,11 @@ import type { ContactChannel, ContactMessage } from './channel'
 const TELEGRAM_API = 'https://api.telegram.org'
 const POLL_TIMEOUT = 30 // seconds, long polling timeout
 const RETRY_DELAY = 15 * 1000 // ms, delay after a failed poll
+const SEND_RETRY_DELAY = 1000 // ms, delay before a send retry, increases with each attempt
+const MAX_RETRY_AFTER = 30 // seconds, max wait when telegram asks to slow down
 
-type TelegramResult<T> = { ok: true, result: T } | { ok: false, error_code: number, description: string }
+type TelegramResult<T> = { ok: true, result: T }
+  | { ok: false, error_code: number, description: string, parameters?: { retry_after?: number } }
 
 type TelegramUser = {
   id: number
@@ -37,10 +40,12 @@ type TelegramUpdate = {
 
 class TelegramError extends Error {
   code: number
+  retryAfter?: number
 
-  constructor(method: string, code: number, description: string) {
+  constructor(method: string, code: number, description: string, retryAfter?: number) {
     super(`Telegram ${method} failed (${String(code)}): ${description}`)
     this.code = code
+    this.retryAfter = retryAfter
   }
 }
 
@@ -62,17 +67,51 @@ async function callTelegram<T>(method: string, params: Record<string, unknown> =
 
   const body = await res.json() as TelegramResult<T>
   if (!body.ok) {
-    throw new TelegramError(method, body.error_code, body.description)
+    throw new TelegramError(method, body.error_code, body.description, body.parameters?.retry_after)
   }
   return body.result
 }
 
+/**
+ * Get how long to wait before retrying a failed request, or null if it should not be retried.
+ * Network errors, timeouts, rate limits and telegram server errors are retried,
+ * other errors (ex. the user blocked the bot) will not succeed on retry.
+ */
+function retryDelay(e: unknown, attempt: number): number | null {
+  if (e instanceof TelegramError) {
+    if (e.code === 429) {
+      return Math.min(e.retryAfter ?? 1, MAX_RETRY_AFTER) * 1000
+    }
+    if (e.code < 500) {
+      return null
+    }
+  }
+  return SEND_RETRY_DELAY * attempt
+}
+
 async function sendText(chatId: string | number, text: string) {
-  await callTelegram('sendMessage', {
-    chat_id: chatId,
-    text,
-    link_preview_options: { is_disabled: true },
-  })
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text,
+        link_preview_options: { is_disabled: true },
+      })
+      return
+    } catch (e) {
+      const delay = retryDelay(e, attempt)
+      if (delay == null || attempt > appConfig.TELEGRAM_RETRY_COUNT) {
+        throw e
+      }
+
+      logger({
+        level: 'debug',
+        message: `Telegram sendMessage failed, retry ${String(attempt)} of ${String(appConfig.TELEGRAM_RETRY_COUNT)}.`,
+        errors: e instanceof Error ? [e] : [{ message: String(e) }],
+      })
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
 }
 
 export const telegramChannel: ContactChannel = {

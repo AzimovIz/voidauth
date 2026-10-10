@@ -1,0 +1,60 @@
+name: Build
+
+# Build the contacts image on the Forgejo runner.
+# Also called by the sync workflow after upstream changes are merged into contacts.
+on:
+  push:
+    branches:
+      - contacts
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: contacts
+          fetch-depth: 0 # tags are needed for the image version
+
+      - name: Image tags
+        id: meta
+        run: |
+          version="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
+          sha="$(git rev-parse --short HEAD)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "Building voidauth ${version} + contacts (${sha})"
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg SERVE_IMAGE=node:24-alpine3.22 \
+            --label org.opencontainers.image.revision="$(git rev-parse HEAD)" \
+            -t voidauth:contacts \
+            -t "voidauth:${{ steps.meta.outputs.version }}-contacts-${{ steps.meta.outputs.sha }}" \
+            .
+
+      # Publishing needs a REGISTRY_TOKEN secret (token with package write access)
+      # and a runner host that can reach the registry over https.
+      - name: Publish image
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          SERVER_URL: ${{ forgejo.server_url }}
+          OWNER: ${{ forgejo.repository_owner }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          if [ -z "$REGISTRY_TOKEN" ]; then
+            echo "REGISTRY_TOKEN secret is not set, the image is only kept on the runner host."
+            exit 0
+          fi
+          registry="${SERVER_URL#*://}"
+          image="${registry}/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/voidauth"
+          echo "$REGISTRY_TOKEN" | docker login "$registry" -u "$OWNER" --password-stdin
+          for tag in contacts "${VERSION}-contacts-${SHA}"; do
+            docker tag "voidauth:${VERSION}-contacts-${SHA}" "${image}:${tag}"
+            docker push "${image}:${tag}"
+          done

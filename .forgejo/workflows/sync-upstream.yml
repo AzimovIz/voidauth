@@ -1,0 +1,67 @@
+name: Sync upstream
+
+# Keep main equal to upstream voidauth main, then merge it into contacts and build.
+# Scheduled workflows run from the default branch, which must be contacts.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+env:
+  UPSTREAM_URL: https://github.com/voidauth/voidauth.git
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: contacts
+          fetch-depth: 0
+          # the automatic token is used to push, unless a SYNC_TOKEN secret with write access is set
+          token: ${{ secrets.SYNC_TOKEN || forgejo.token }}
+
+      - name: Update main from upstream
+        run: |
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --tags upstream main
+          git fetch origin main || true
+
+          # main must only contain upstream commits, so it is always a fast-forward
+          if git rev-parse --verify -q origin/main >/dev/null \
+            && ! git merge-base --is-ancestor origin/main upstream/main; then
+            echo "::error::main has commits that are not in upstream, refusing to overwrite it."
+            exit 1
+          fi
+
+          git push origin upstream/main:refs/heads/main
+          git push origin --tags
+
+      - name: Merge main into contacts
+        id: merge
+        run: |
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "contacts already contains upstream main."
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "Forgejo Actions"
+          git config user.email "actions@noreply.localhost"
+          if ! git merge --no-edit -m "Merge upstream main into contacts" upstream/main; then
+            git merge --abort
+            echo "::error::Merge conflict between upstream main and contacts, merge it manually."
+            exit 1
+          fi
+
+          git push origin HEAD:refs/heads/contacts
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: sync
+    if: needs.sync.outputs.merged == 'true'
+    uses: ./.forgejo/workflows/build.yml
+    secrets: inherit

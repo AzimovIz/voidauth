@@ -52,6 +52,7 @@ userRouter.get('/me',
       isPrivilegedForEmail: user.isPrivilegedForEmail,
 
       hasEmail: user.hasEmail,
+      contactTypes: user.contactTypes,
     }
 
     res.send(response)

@@ -6,7 +6,8 @@ import { ADMIN_GROUP, CLIENT_DEFAULTS, REDIRECT_PATHS, TTLs } from '@shared/cons
 import { errors } from 'oidc-provider'
 import { getCookieKeys, getJWKs, makeKeysValid } from '../db/key'
 import { interactionPolicy } from 'oidc-provider'
-import { isExpired, isUnapproved, isUnverifiedEmail, loginFactors, type amrFactor } from '@shared/user'
+import { isExpired, isUnapproved, loginFactors, type amrFactor } from '@shared/user'
+import { isUnverifiedUser } from '../util/auth'
 import { isMatch } from 'matcher'
 import assert from 'assert'
 import { wildcardRedirect } from '@shared/url'
@@ -93,9 +94,9 @@ loginPromptPolicy.checks.add(new Check('user_email_not_validated',
   'user email address does not exist or is not validated',
   'user_email_not_validated', async (ctx) => {
     const { oidc } = ctx
-    if (oidc.account?.accountId && appConfig.EMAIL_VERIFICATION) {
+    if (oidc.account?.accountId && appConfig.CONTACT_VERIFICATION.length) {
       const user = await getUserById(oidc.account.accountId)
-      if (user && isUnverifiedEmail(user, appConfig.EMAIL_VERIFICATION)) {
+      if (user && isUnverifiedUser(user)) {
         return Check.REQUEST_PROMPT
       }
     }

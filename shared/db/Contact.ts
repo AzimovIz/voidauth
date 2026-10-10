@@ -4,6 +4,10 @@ import type { Audit } from './Audit'
 export const CONTACT_TYPES = ['telegram'] as const
 export type ContactType = typeof CONTACT_TYPES[number]
 
+// Email is kept on the user table, but can be used for verification like any other contact type
+export const VERIFICATION_CONTACT_TYPES = ['email', ...CONTACT_TYPES] as const
+export type VerificationContactType = typeof VERIFICATION_CONTACT_TYPES[number]
+
 export type UserContact = Pick<Audit, 'createdAt' | 'updatedAt'> & {
   id: string
   userId: string

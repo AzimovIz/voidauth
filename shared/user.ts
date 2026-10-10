@@ -1,5 +1,6 @@
 import type { UserDetails } from './api-response/UserDetails'
 import { stringCompare } from './utils'
+import type { VerificationContactType } from './db/Contact'
 
 export type amrFactor = 'email' | 'pwd' | 'totp' | 'webauthn' | 'webauthn_v'
 
@@ -66,6 +67,23 @@ export function isExpired(user: Pick<UserDetails, 'expiresAt' | 'isAdmin'>) {
 
 export function isUnverifiedEmail(user: Pick<UserDetails, 'hasEmail' | 'emailVerified' | 'isAdmin'>, EMAIL_VERIFICATION: boolean) {
   return !user.isAdmin && EMAIL_VERIFICATION && (!user.hasEmail || !user.emailVerified)
+}
+
+/**
+ * Like isUnverifiedEmail, but any verified contact of a type in CONTACT_VERIFICATION is enough.
+ * With CONTACT_VERIFICATION = ['email'] this is the same as isUnverifiedEmail with EMAIL_VERIFICATION = true
+ */
+export function isUnverifiedContact(
+  user: Pick<UserDetails, 'hasEmail' | 'emailVerified' | 'isAdmin' | 'contactTypes'>,
+  CONTACT_VERIFICATION: VerificationContactType[],
+) {
+  if (user.isAdmin || !CONTACT_VERIFICATION.length) {
+    return false
+  }
+
+  const emailVerified = CONTACT_VERIFICATION.includes('email') && user.hasEmail && !!user.emailVerified
+  const contactVerified = user.contactTypes.some(t => CONTACT_VERIFICATION.includes(t))
+  return !emailVerified && !contactVerified
 }
 
 type TrackedCustomClaim = { claim: string, value: string, groupId?: string }

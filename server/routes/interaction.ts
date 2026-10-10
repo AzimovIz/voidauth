@@ -55,6 +55,7 @@ import { zodValidate } from '../util/zodValidate'
 import zod from 'zod'
 import { passkeyAuthenticationValidator, passkeyRegistrationValidator } from '../../shared/validators'
 import { passwordStrength } from '../util/zxcvbn'
+import { isEmailRequired } from '../util/auth'
 import { checkCanLogin,
   checkPrivilegedForPasskeyCreate,
   checkPrivilegedForTotpCreate,
@@ -110,7 +111,7 @@ router.get('/', async (req, res) => {
       // User does not have a validated email and needs one
       // Send a verification email if possible
       let verificationSent = false
-      if (user && !await getEmailVerification(user.id)) {
+      if (user && appConfig.EMAIL_VERIFICATION && !await getEmailVerification(user.id)) {
         verificationSent = await createEmailVerification(user, null)
       }
 
@@ -339,7 +340,7 @@ router.post('/register',
       return
     }
 
-    if (appConfig.EMAIL_VERIFICATION && !registration.email) {
+    if (isEmailRequired() && !registration.email) {
       res.status(400).send({ message: 'EMAIL_VERIFICATION is enabled but no email address was provided during registration.' })
       return
     }
@@ -501,7 +502,7 @@ router.post('/register/passkey/end',
   }), async (req, res) => {
     const registration = req.body
 
-    if (appConfig.EMAIL_VERIFICATION && !registration.email) {
+    if (isEmailRequired() && !registration.email) {
       res.status(400).send({ message: 'EMAIL_VERIFICATION is enabled but no email address was provided during registration.' })
       return
     }

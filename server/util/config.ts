@@ -11,6 +11,7 @@ import type { SecureVersion } from 'node:tls'
 import { randomBytes } from 'node:crypto'
 import { parseDN } from '../ldap/util'
 import { CLIENT_DEFAULTS } from '@shared/constants'
+import { VERIFICATION_CONTACT_TYPES, type VerificationContactType } from '@shared/db/Contact'
 
 // basic config for app
 class Config {
@@ -24,6 +25,7 @@ class Config {
   SIGNUP = false
   SIGNUP_REQUIRES_APPROVAL = true
   EMAIL_VERIFICATION: boolean | null = null
+  CONTACT_VERIFICATION: VerificationContactType[] = [] // resolved from env after all config values are read
   MFA_REQUIRED: boolean = false
 
   APP_COLOR = '#906bc7'
@@ -90,6 +92,9 @@ class Config {
 
 const appConfig = new Config()
 
+// raw CONTACT_VERIFICATION env value, it depends on other config values so is resolved after they are read
+let contactVerificationValue: string | undefined
+
 function assignConfigValue(key: keyof Config, value: string | undefined) {
   switch (key) {
     // positive ints
@@ -135,6 +140,10 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
 
     case 'EMAIL_VERIFICATION':
       appConfig[key] = booleanString(value) ?? appConfig[key]
+      break
+
+    case 'CONTACT_VERIFICATION':
+      contactVerificationValue = stringOnly(value) || undefined
       break
 
     // non default variables
@@ -346,6 +355,15 @@ function maskString(input: string | undefined) {
 }
 
 // functions to help format config
+function isContactTypeConfigured(type: VerificationContactType) {
+  switch (type) {
+    case 'email':
+      return !!appConfig.SMTP_HOST
+    case 'telegram':
+      return !!appConfig.TELEGRAM_BOT_TOKEN
+  }
+}
+
 function stringOnly(value: unknown): string | null {
   if (typeof value === 'string') {
     return value
@@ -560,9 +578,55 @@ if (appConfig.PASSWORD_STRENGTH < 0 || appConfig.PASSWORD_STRENGTH > 4) {
   exit(1)
 }
 
+const EMAIL_VERIFICATION_SET = appConfig.EMAIL_VERIFICATION != null
+
 // If EMAIL_VERIFICATION is unset, give it a default value
 if (appConfig.EMAIL_VERIFICATION == null) {
   appConfig.EMAIL_VERIFICATION = !!appConfig.SMTP_HOST
+}
+
+// CONTACT_VERIFICATION is the list of contact types a user can verify their account with.
+// If unset, it follows EMAIL_VERIFICATION. If set, EMAIL_VERIFICATION follows it.
+if (contactVerificationValue == null) {
+  appConfig.CONTACT_VERIFICATION = appConfig.EMAIL_VERIFICATION ? ['email'] : []
+} else {
+  if (EMAIL_VERIFICATION_SET) {
+    logger({
+      level: 'info',
+      message: 'EMAIL_VERIFICATION is ignored when CONTACT_VERIFICATION is set.',
+    })
+  }
+
+  const contactVerificationBool = booleanString(contactVerificationValue)
+  if (contactVerificationBool != null) {
+    // true means any configured contact type
+    appConfig.CONTACT_VERIFICATION = contactVerificationBool
+      ? VERIFICATION_CONTACT_TYPES.filter(t => isContactTypeConfigured(t))
+      : []
+  } else {
+    const types = contactVerificationValue.split(',').map(t => t.trim().toLowerCase()).filter(t => !!t)
+    const invalidTypes = types.filter(t => !(VERIFICATION_CONTACT_TYPES as readonly string[]).includes(t))
+    if (invalidTypes.length) {
+      logger({
+        level: 'error',
+        message: `CONTACT_VERIFICATION contains unknown contact types: ${invalidTypes.join(', ')}. `
+          + `Valid types are: ${VERIFICATION_CONTACT_TYPES.join(', ')}.`,
+      })
+      exit(1)
+    }
+    appConfig.CONTACT_VERIFICATION = [...new Set(types)] as VerificationContactType[]
+  }
+
+  appConfig.EMAIL_VERIFICATION = appConfig.CONTACT_VERIFICATION.includes('email')
+}
+
+// Every contact type used for verification must be configured, or users may not be able to verify
+const unconfiguredContactTypes = appConfig.CONTACT_VERIFICATION.filter(t => !isContactTypeConfigured(t))
+if (unconfiguredContactTypes.length) {
+  logger({
+    level: 'error',
+    message: `CONTACT_VERIFICATION includes contact types that are not configured: ${unconfiguredContactTypes.join(', ')}.`,
+  })
 }
 
 // If SMTP_NOAUTH is true, check that SMTP_USER and SMTP_PASS are not set

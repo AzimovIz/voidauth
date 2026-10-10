@@ -9,6 +9,8 @@ import type { Flag } from '@shared/db/Flag'
 import appConfig from '../util/config'
 import { hasTOTP } from './totp'
 import { getUserPasskeys } from './passkey'
+import { getUserContacts } from './contacts'
+import type { UserContact } from '@shared/db/Contact'
 import { argon2 } from '../util/argon2id'
 import zod from 'zod'
 import { createPasswordReset, getPasswordResetURL } from './passwordReset'
@@ -112,9 +114,20 @@ export async function getLDAPVisibleUsers(limit = 1000): Promise<Pick<User, 'id'
       w.andWhere('approved', true)
     }
 
-    // email verified (if email verification is required)
-    if (appConfig.EMAIL_VERIFICATION) {
-      w.andWhere('emailVerified', true)
+    // email or contact verified (if verification is required)
+    if (appConfig.CONTACT_VERIFICATION.length) {
+      const contactTypes = appConfig.CONTACT_VERIFICATION.filter(t => t !== 'email')
+      w.andWhere((v) => {
+        if (appConfig.CONTACT_VERIFICATION.includes('email')) {
+          v.where('emailVerified', true)
+        }
+        if (contactTypes.length) {
+          v.orWhereExists(c => c.select('*')
+            .table<UserContact>(TABLES.USER_CONTACT)
+            .whereIn('type', contactTypes)
+            .andWhereRaw('?? = ??', [`${TABLES.USER_CONTACT}.userId`, `${TABLES.USER}.id`]))
+        }
+      })
     }
   }).limit(limit)).map((u) => {
     return {
@@ -148,13 +161,14 @@ export async function getUserById(id: string): Promise<UserDetails | undefined> 
   const passkeys = await getUserPasskeys(user.id)
   const hasPasskeys = !!(passkeys.length)
   const hasVerifyPasskeys = passkeys.some(p => p.canVerify)
+  const contactTypes = (await getUserContacts(user.id)).map(c => c.type)
 
   const { passwordHash, ...userWithoutPassword } = user
   return {
     ...userWithoutPassword,
     groups: groupsWithClaims,
     customClaims,
-    hasMfaGroup, hasPasskeys, hasVerifyPasskeys, hasTotp, hasPassword: !!passwordHash, isAdmin, hasEmail: !!user.email }
+    hasMfaGroup, hasPasskeys, hasVerifyPasskeys, hasTotp, hasPassword: !!passwordHash, isAdmin, hasEmail: !!user.email, contactTypes }
 }
 
 export async function getUserByInput(input: string): Promise<UserDetails | undefined> {

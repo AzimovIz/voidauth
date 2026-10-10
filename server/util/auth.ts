@@ -1,9 +1,24 @@
 import type { UserDetails } from '@shared/api-response/UserDetails'
-import { availableLoginFactors, isExpired, isUnapproved, isUnverifiedEmail, loginFactors, type amrFactor } from '@shared/user'
+import { availableLoginFactors, isExpired, isUnapproved, isUnverifiedContact, loginFactors, type amrFactor } from '@shared/user'
 import appConfig from './config'
 
 function userCanMfa(user: UserDetails) {
   return loginFactors(availableLoginFactors(user)) > 1
+}
+
+export function isUnverifiedUser(user: Pick<UserDetails, 'hasEmail' | 'emailVerified' | 'isAdmin' | 'contactTypes'>) {
+  return isUnverifiedContact(user, appConfig.CONTACT_VERIFICATION)
+}
+
+// Email is required at registration when it is the only way to verify
+export function isEmailRequired() {
+  return !!appConfig.CONTACT_VERIFICATION.length && appConfig.CONTACT_VERIFICATION.every(t => t === 'email')
+}
+
+// Unverified users that have an email cannot manage their account until it is verified,
+// unless they can also verify with another contact type, then they must be able to add one
+function blockedByUnverifiedEmail(user: UserDetails) {
+  return user.hasEmail && isUnverifiedUser(user) && appConfig.CONTACT_VERIFICATION.every(t => t === 'email')
 }
 
 /**
@@ -11,7 +26,7 @@ function userCanMfa(user: UserDetails) {
  * Checks that session has required factors, user is approved, and email is verified (if required)
  */
 export function userCanLogin(
-  user: Pick<UserDetails, 'mfaRequired' | 'hasMfaGroup' | 'hasTotp' | 'hasEmail' | 'emailVerified' | 'approved' | 'isAdmin'> | undefined,
+  user: Pick<UserDetails, 'mfaRequired' | 'hasMfaGroup' | 'hasTotp' | 'hasEmail' | 'emailVerified' | 'approved' | 'isAdmin' | 'contactTypes'> | undefined,
   amr: amrFactor[],
 ): user is UserDetails {
   if (!user) {
@@ -43,8 +58,8 @@ export function userCanLogin(
     return false
   }
 
-  // Users must have a verified email to login if required by config
-  if (isUnverifiedEmail(user, !!appConfig.EMAIL_VERIFICATION)) {
+  // Users must have a verified email (or contact) to login if required by config
+  if (isUnverifiedUser(user)) {
     return false
   }
 
@@ -82,7 +97,7 @@ export function userIsPrivilegedForEmail(user: UserDetails | undefined, amr: amr
   }
 
   // A user that doesn't have an email can still manage their email, even if email verification is required
-  if (user.hasEmail && isUnverifiedEmail(user, !!appConfig.EMAIL_VERIFICATION)) {
+  if (blockedByUnverifiedEmail(user)) {
     return false
   }
 
@@ -113,7 +128,7 @@ export function userIsPrivilegedForPasskeyCreate(user: UserDetails | undefined, 
   }
 
   // Can still set up totp if they don't have an email, even if it is required
-  if (user.hasEmail && isUnverifiedEmail(user, !!appConfig.EMAIL_VERIFICATION)) {
+  if (blockedByUnverifiedEmail(user)) {
     return false
   }
 
@@ -143,7 +158,7 @@ export function userIsPrivilegedForTotpValidate(user: UserDetails | undefined, a
   }
 
   // Can still set up totp if they don't have an email, even if it is required
-  if (user.hasEmail && isUnverifiedEmail(user, !!appConfig.EMAIL_VERIFICATION)) {
+  if (blockedByUnverifiedEmail(user)) {
     return false
   }
 

@@ -2,6 +2,7 @@ import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { Router } from 'express'
 import appConfig from '../util/config'
 import { sendPasswordReset, SMTP_VERIFIED } from '../util/email'
+import { isTelegramActive } from '../contacts/telegram'
 import type { PasswordReset } from '@shared/db/PasswordReset'
 import { getUserById, getUserByInput } from '../db/user'
 import { endUserSessions } from '../oidc/provider'
@@ -35,6 +36,8 @@ publicRouter.get('/config', (_req, res) => {
     zxcvbnMin: appConfig.PASSWORD_STRENGTH,
     emailActive: SMTP_VERIFIED,
     emailVerification: !!appConfig.EMAIL_VERIFICATION,
+    contactVerification: appConfig.CONTACT_VERIFICATION,
+    telegramActive: isTelegramActive(),
     registration: appConfig.SIGNUP,
     contactEmail: appConfig.CONTACT_EMAIL,
     defaultRedirect: appConfig.DEFAULT_REDIRECT,

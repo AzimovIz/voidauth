@@ -2,6 +2,7 @@ import type { OnlyKeys, RemoveKeys } from '@shared/utils'
 import type { Group } from '../db/Group.js'
 import type { User } from '../db/User.js'
 import type { amrFactor } from '@shared/user.js'
+import type { ContactType } from '../db/Contact.js'
 
 export type UserWithoutPassword = RemoveKeys<User, 'passwordHash'> & {
   hasPassword: boolean
@@ -29,6 +30,7 @@ export type UserDetails = UserWithAdminIndicator & {
   hasPasskeys: boolean
   hasVerifyPasskeys: boolean
   hasMfaGroup: boolean
+  contactTypes: ContactType[] // types of verified non-email contacts, ex. telegram
 }
 
 type UserSessionInfo = {
@@ -47,5 +49,5 @@ export type CurrentUserPrivateDetails = UserDetails & UserSessionInfo
 export type CurrentUserDetails = OnlyKeys<
   UserDetails,
   'id' | 'isAdmin' | 'mfaRequired' | 'hasTotp'
-  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail' | 'emailVerified' | 'expiresAt' | 'approved'>
+  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail' | 'emailVerified' | 'expiresAt' | 'approved' | 'contactTypes'>
   & UserSessionInfo

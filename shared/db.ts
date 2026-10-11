@@ -4,6 +4,9 @@ export const TABLES = {
   KEY: 'key',
   FLAG: 'flag',
   USER: 'user',
+  USER_CONTACT: 'user_contact',
+  CONTACT_VERIFICATION: 'contact_verification',
+  CONTACT_LOG: 'contact_log',
   GROUP: 'group',
   USER_GROUP: 'user_group',
   CONSENT: 'consent',
@@ -25,15 +28,17 @@ export const TABLES = {
   USER_CUSTOM_CLAIM: 'user_custom_claim',
   GROUP_CUSTOM_CLAIM: 'group_custom_claim',
   INVITATION_CUSTOM_CLAIM: 'invitation_custom_claim',
-  USER_CONTACT: 'user_contact',
-  CONTACT_VERIFICATION: 'contact_verification',
-  CONTACT_LOG: 'contact_log',
+  UPLOADED_ASSET: 'uploaded_asset',
+  CLIENT_LOGO_ASSET: 'client_logo_asset',
 } as const
 
 export const TABLES_ORDER: ValueOf<typeof TABLES>[] = [
   TABLES.KEY,
   TABLES.FLAG,
   TABLES.USER,
+  TABLES.USER_CONTACT,
+  TABLES.CONTACT_VERIFICATION,
+  TABLES.CONTACT_LOG,
   TABLES.GROUP,
   TABLES.USER_GROUP,
   TABLES.CONSENT,
@@ -55,9 +60,8 @@ export const TABLES_ORDER: ValueOf<typeof TABLES>[] = [
   TABLES.USER_CUSTOM_CLAIM,
   TABLES.GROUP_CUSTOM_CLAIM,
   TABLES.INVITATION_CUSTOM_CLAIM,
-  TABLES.USER_CONTACT,
-  TABLES.CONTACT_VERIFICATION,
-  TABLES.CONTACT_LOG,
+  TABLES.UPLOADED_ASSET,
+  TABLES.CLIENT_LOGO_ASSET,
 ] as const
 
 if (!Object.values(TABLES).every(t => TABLES_ORDER.includes(t))) {

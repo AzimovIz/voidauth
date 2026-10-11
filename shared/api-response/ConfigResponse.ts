@@ -9,6 +9,7 @@ export type ConfigResponse = {
   contactVerification: VerificationContactType[]
   telegramActive: boolean
   registration: boolean
+  disableFileUploads: boolean
   contactEmail?: string
   defaultRedirect?: string
 }

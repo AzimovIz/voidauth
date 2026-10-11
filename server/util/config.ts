@@ -27,6 +27,7 @@ class Config {
   EMAIL_VERIFICATION: boolean | null = null
   CONTACT_VERIFICATION: VerificationContactType[] = [] // resolved from env after all config values are read
   MFA_REQUIRED: boolean = false
+  DISABLE_FILE_UPLOADS: boolean = false
 
   APP_COLOR = '#906bc7'
   APP_FONT = ''
@@ -136,6 +137,7 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SIGNUP':
     case 'SIGNUP_REQUIRES_APPROVAL':
     case 'MFA_REQUIRED':
+    case 'DISABLE_FILE_UPLOADS':
     case 'DB_SSL':
     case 'DB_SSL_VERIFICATION':
     case 'MIGRATE_TO_DB_SSL':

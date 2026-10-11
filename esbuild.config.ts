@@ -32,6 +32,7 @@ rmSync(outDir, {
 const externalDeps = [
   'better-sqlite3',
   '@angular/material',
+  'sharp', // loads a platform specific native module, which can not be bundled
 ]
 
 await esbuild.build({

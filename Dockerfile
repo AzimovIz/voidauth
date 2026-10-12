@@ -4,13 +4,13 @@ ARG SERVE_IMAGE=dhi.io/node:24-alpine
 #
 # Builder
 #
-FROM node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a AS install
+FROM node:24-alpine AS install
 
 WORKDIR /app
 
 # Install BE dependencies
 COPY ./package*.json ./
-RUN npm ci
+RUN npm i --include-optional
 
 # Install FE dependencies
 COPY ./frontend/package*.json ./frontend/
@@ -42,7 +42,7 @@ RUN cd ./dist && npm i
 # 
 # Compile all outputs into /app folder
 # 
-FROM node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 

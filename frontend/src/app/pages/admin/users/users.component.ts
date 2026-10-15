@@ -137,7 +137,7 @@ export class UsersComponent {
       this.selected = []
     } catch (e) {
       console.error(e)
-      this.snackbarService.error('Could not get users.')
+      this.snackbarService.error(String(this.translate.instant('admin.users.messages.load-failed')))
     } finally {
       this.spinnerService.hide()
     }
@@ -158,8 +158,8 @@ export class UsersComponent {
     const user = this.dataSource.data.find(u => u.id === id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove user '${user?.username ?? id}'?`,
-        header: 'Delete',
+        message: String(this.translate.instant('admin.users.dialogs.delete', { name: user?.username ?? id })),
+        header: String(this.translate.instant('admin.common.actions.delete')),
       },
     })
 
@@ -171,9 +171,9 @@ export class UsersComponent {
         this.spinnerService.show()
         await this.adminService.deleteUser(id)
         this.dataSource.data = this.dataSource.data.filter(g => g.id !== id)
-        this.snackbarService.message('User was deleted.')
+        this.snackbarService.message(String(this.translate.instant('admin.users.messages.deleted')))
       } catch (_e) {
-        this.snackbarService.error('Could not delete user.')
+        this.snackbarService.error(String(this.translate.instant('admin.users.messages.delete-failed')))
       } finally {
         this.spinnerService.hide()
       }
@@ -191,8 +191,8 @@ export class UsersComponent {
   approveSelected() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to approve ${String(this.selected.length)} user(s)?`,
-        header: 'Approval',
+        message: String(this.translate.instant('admin.users.dialogs.approve-selected', { count: this.selected.length })),
+        header: String(this.translate.instant('admin.users.dialogs.approval')),
       },
     })
 
@@ -213,9 +213,9 @@ export class UsersComponent {
 
         this.toggleSelectEnabled()
 
-        this.snackbarService.message('User(s) were approved.')
+        this.snackbarService.message(String(this.translate.instant('admin.users.messages.selected-approved')))
       } catch (_e) {
-        this.snackbarService.error('Could not approve user(s).')
+        this.snackbarService.error(String(this.translate.instant('admin.users.messages.selected-approve-failed')))
       } finally {
         this.spinnerService.hide()
       }
@@ -225,8 +225,8 @@ export class UsersComponent {
   deleteSelected() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to delete ${String(this.selected.length)} user(s)?`,
-        header: 'Delete',
+        message: String(this.translate.instant('admin.users.dialogs.delete-selected', { count: this.selected.length })),
+        header: String(this.translate.instant('admin.common.actions.delete')),
       },
     })
 
@@ -243,9 +243,9 @@ export class UsersComponent {
 
         this.toggleSelectEnabled()
 
-        this.snackbarService.message('User(s) were deleted.')
+        this.snackbarService.message(String(this.translate.instant('admin.users.messages.selected-deleted')))
       } catch (_e) {
-        this.snackbarService.error('Could not delete user(s).')
+        this.snackbarService.error(String(this.translate.instant('admin.users.messages.selected-delete-failed')))
       } finally {
         this.spinnerService.hide()
       }

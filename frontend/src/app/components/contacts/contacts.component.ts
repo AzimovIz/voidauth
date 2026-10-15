@@ -1,7 +1,7 @@
 import { Component, inject, type OnDestroy, type OnInit, ChangeDetectionStrategy } from '@angular/core'
 import { HttpErrorResponse } from '@angular/common/http'
 import { MatDialog } from '@angular/material/dialog'
-import { TranslatePipe } from '@ngx-translate/core'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import type { ContactLinkResponse, ContactResponse } from '@shared/api-response/ContactResponse'
 import { MaterialModule } from '../../material-module'
@@ -35,6 +35,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private translateService = inject(TranslateService)
 
   get telegram() {
     return this.contactsByType.telegram
@@ -72,7 +73,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
       this.startContactPoll()
     } catch (e) {
       console.error(e)
-      this.snackbarService.error('Could not create Telegram link.')
+      this.snackbarService.error(String(this.translateService.instant('settings.sections.profile.contacts.messages.link-failed')))
     } finally {
       this.spinnerService.hide()
     }
@@ -81,8 +82,10 @@ export class ContactsComponent implements OnInit, OnDestroy {
   removeContact(contact: ContactResponse) {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to unlink ${contact.displayName ?? contact.type}?`,
-        header: 'Unlink',
+        message: String(this.translateService.instant('settings.sections.profile.contacts.messages.unlink-confirm', {
+          name: contact.displayName ?? contact.type,
+        })),
+        header: String(this.translateService.instant('settings.sections.profile.contacts.actions.unlink.tooltip')),
       },
     })
 
@@ -94,11 +97,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
       try {
         this.spinnerService.show()
         await this.userService.removeContact(contact.id)
-        this.snackbarService.message('Contact unlinked.')
+        this.snackbarService.message(String(this.translateService.instant('settings.sections.profile.contacts.messages.unlinked')))
       } catch (e) {
         console.error(e)
         const message = e instanceof HttpErrorResponse ? (e.error as { message?: string } | null)?.message : undefined
-        this.snackbarService.error(message ?? 'Could not unlink contact.')
+        const fallback = String(this.translateService.instant('settings.sections.profile.contacts.messages.unlink-failed'))
+        this.snackbarService.error(message ?? fallback)
       } finally {
         await this.loadContacts()
         this.spinnerService.hide()
@@ -121,7 +125,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
         if (this.telegram) {
           this.stopContactPoll()
           this.telegramLink = undefined
-          this.snackbarService.message('Telegram linked.')
+          this.snackbarService.message(String(this.translateService.instant('settings.sections.profile.contacts.messages.linked')))
         }
       } catch (_e) {
         // try again on next interval

@@ -6,7 +6,7 @@ import { SnackbarService } from '../../../services/snackbar.service'
 import { SpinnerService } from '../../../services/spinner.service'
 import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { ConfigService, getCurrentHost } from '../../../services/config.service'
-import { TranslatePipe } from '@ngx-translate/core'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { UserService } from '../../../services/user.service'
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms'
 import { isValidEmail } from '../../../validators/validators'
@@ -46,6 +46,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
   })
 
   private router = inject(Router)
+  private translateService = inject(TranslateService)
   private activatedRoute = inject(ActivatedRoute)
   private userService = inject(UserService)
   private snackbarService = inject(SnackbarService)
@@ -88,7 +89,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
       })
     } catch (_e) {
       // If user cannot be loaded, this page won't work
-      this.snackbarService.error('Could not load user details.')
+      this.snackbarService.error(String(this.translateService.instant('verify-email.verify-sent.messages.user-load-failed')))
     }
 
     if (!this.currentUser || this.currentUser.hasEmail) {
@@ -114,14 +115,14 @@ export class VerifySentComponent implements OnInit, OnDestroy {
           },
           queryParamsHandling: 'merge',
         })
-        this.snackbarService.message('Verification email sent.')
+        this.snackbarService.message(String(this.translateService.instant('components.common.messages.verification-email-sent')))
       } else {
-        this.snackbarService.message('Email updated.')
+        this.snackbarService.message(String(this.translateService.instant('components.common.messages.email-updated')))
         await this.router.navigate([REDIRECT_PATHS.LOGIN])
       }
     } catch (e) {
       console.error(e)
-      this.snackbarService.error('Could not update email.')
+      this.snackbarService.error(String(this.translateService.instant('components.common.messages.email-update-failed')))
     } finally {
       await this.loadUser()
       this.spinnerService.hide()
@@ -138,7 +139,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
         },
         queryParamsHandling: 'merge',
       })
-      this.snackbarService.message('Verification Email Re-Sent.')
+      this.snackbarService.message(String(this.translateService.instant('verify-email.verify-sent.messages.resent')))
     } catch (e) {
       console.error(e)
       let error: string | null = null
@@ -149,7 +150,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
         error ??= (e as Error).message
       }
 
-      error ??= 'Something went wrong.'
+      error ??= String(this.translateService.instant('components.common.messages.something-went-wrong'))
       this.snackbarService.error(error)
     } finally {
       this.spinnerService.hide()
@@ -171,7 +172,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
       this.startContactPoll()
     } catch (e) {
       console.error(e)
-      this.snackbarService.error('Could not create Telegram link.')
+      this.snackbarService.error(String(this.translateService.instant('verify-email.verify-sent.messages.telegram-link-failed')))
     } finally {
       this.spinnerService.hide()
     }
@@ -191,7 +192,7 @@ export class VerifySentComponent implements OnInit, OnDestroy {
         const user = await this.userService.getMyUser({ disableCache: true })
         if (user.contactTypes.includes('telegram')) {
           this.stopContactPoll()
-          this.snackbarService.message('Telegram linked.')
+          this.snackbarService.message(String(this.translateService.instant('verify-email.verify-sent.messages.telegram-linked')))
           await this.continueLogin()
         }
       } catch (_e) {

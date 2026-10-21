@@ -50,5 +50,6 @@ export type CurrentUserPrivateDetails = UserDetails & UserSessionInfo
 export type CurrentUserDetails = OnlyKeys<
   UserDetails,
   'id' | 'isAdmin' | 'mfaRequired' | 'hasTotp'
-  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail' | 'emailVerified' | 'expiresAt' | 'approved' | 'contactTypes'>
+  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail' | 'emailVerified' | 'expiresAt' | 'approved' | 'skipPasskeyPrompt'
+  | 'contactTypes'>
   & UserSessionInfo

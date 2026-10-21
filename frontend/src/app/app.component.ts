@@ -1,7 +1,8 @@
 import translationsEN from '../../public/i18n/en-US.json'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import { Component, inject, type OnInit, ChangeDetectionStrategy } from '@angular/core'
-import { RouterLink, RouterOutlet } from '@angular/router'
+import { Component, inject, type OnInit, ChangeDetectionStrategy, signal } from '@angular/core'
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router'
+import { filter } from 'rxjs'
 import { HeaderComponent } from './components/header/header.component'
 import { MaterialModule } from './material-module'
 import { UserService } from './services/user.service'
@@ -22,7 +23,9 @@ export class AppComponent implements OnInit {
   user?: CurrentUserDetails
   config?: ConfigResponse
   host = getCurrentHost()
+  showPageBackground = signal(false)
 
+  private router = inject(Router)
   private userService = inject(UserService)
   private configService = inject(ConfigService)
   private spinnerService = inject(SpinnerService)
@@ -30,10 +33,19 @@ export class AppComponent implements OnInit {
   private translationService = inject(TranslationService)
 
   constructor() {
+    this.updatePageBackground()
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(() => {
+      this.updatePageBackground()
+    })
+
     this.translate.setTranslation('en-US', translationsEN)
     this.translate.setFallbackLang('en-US')
     this.translate.use('en-US')
     void this.translationService.setInitialLang()
+  }
+
+  private updatePageBackground() {
+    this.showPageBackground.set(this.router.routerState.snapshot.root.firstChild?.data['pageBackground'] === true)
   }
 
   async ngOnInit() {

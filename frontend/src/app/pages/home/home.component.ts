@@ -10,7 +10,7 @@ import { ConfigService } from '../../services/config.service'
 import { PasswordSetComponent } from '../../components/password-reset/password-set.component'
 import { SpinnerService } from '../../services/spinner.service'
 import { PasskeyService, type PasskeySupport } from '../../services/passkey.service'
-import { WebAuthnAbortService, WebAuthnError } from '@simplewebauthn/browser'
+import { WebAuthnAbortService } from '@simplewebauthn/browser'
 import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../dialogs/confirm/confirm.component'
@@ -24,19 +24,19 @@ import { MatTableDataSource } from '@angular/material/table'
 import type { TableColumn } from '../admin/clients/clients.component'
 import { MatSort } from '@angular/material/sort'
 import { CommonModule } from '@angular/common'
+import { LooseAsyncPipe } from '../../pipes/LooseAsyncPipe'
 import { ContactsComponent } from '../../components/contacts/contacts.component'
 
 @Component({
   selector: 'app-home',
-  imports: [
-    ReactiveFormsModule, MaterialModule, ValidationErrorPipe, PasswordSetComponent,
-    TranslatePipe, AsyncPipe, CommonModule, ContactsComponent,
-  ],
+  imports: [ReactiveFormsModule, MaterialModule, ValidationErrorPipe,
+    PasswordSetComponent, TranslatePipe, AsyncPipe, CommonModule, LooseAsyncPipe, ContactsComponent],
   templateUrl: './home.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home.component.scss',
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  private translateService = inject(TranslateService)
   user?: CurrentUserPrivateDetails
 
   public passkeySupport?: PasskeySupport
@@ -103,7 +103,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   passkeyColumns: TableColumn<PasskeyResponse>[] = [
     {
       columnDef: 'displayName',
-      header: 'settings.sections.security.passkeys.columns.name',
+      header: this.translateService.stream('settings.sections.security.passkeys.columns.name'),
       // User name if exists, otherwise use id convert from base64Url to base64, then convert to hex
       cell: element =>
         element.displayName
@@ -117,7 +117,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     },
     {
       columnDef: 'lastUsed',
-      header: 'settings.sections.security.passkeys.columns.last-used',
+      header: this.translateService.stream('settings.sections.security.passkeys.columns.last-used'),
       cell: element =>
         element.lastUsed
           ? new Date(element.lastUsed).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -125,7 +125,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     },
     {
       columnDef: 'createdAt',
-      header: 'settings.sections.security.passkeys.columns.created-at',
+      header: this.translateService.stream('settings.sections.security.passkeys.columns.created-at'),
       cell: element =>
         element.createdAt
           ? new Date(element.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -137,7 +137,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   readonly passkeySort = viewChild.required(MatSort)
 
   private configService = inject(ConfigService)
-  private translateService = inject(TranslateService)
   private userService = inject(UserService)
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
@@ -263,20 +262,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   async registerPasskey() {
-    this.spinnerService.show()
-    try {
-      await this.passkeyService.register()
-      await this.loadUser()
+    const registered = await this.passkeyService.dialogRegistration({
+      skipPasskeyPrompt: !!this.user?.skipPasskeyPrompt,
+      context: 'manual',
+    })
+    await this.loadUser()
+    if (registered) {
       this.snackbarService.message(String(this.translateService.instant('settings.messages.passkey-registered')))
-    } catch (error) {
-      if (error instanceof WebAuthnError && error.name === 'InvalidStateError') {
-        this.snackbarService.error(String(this.translateService.instant('components.common.messages.passkey-already-registered')))
-      } else {
-        this.snackbarService.error(String(this.translateService.instant('components.common.messages.register-passkey-failed')))
-      }
-      console.error(error)
-    } finally {
-      this.spinnerService.hide()
     }
   }
 

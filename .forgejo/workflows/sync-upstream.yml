@@ -16,6 +16,27 @@ jobs:
     outputs:
       merged: ${{ steps.merge.outputs.merged }}
     steps:
+      # Forgejo is reached over https with a certificate from the private LUKLU CA,
+      # trust its root before anything talks to the server.
+      # LUKLU Root CA, SHA-256 4E:66:08:58:2F:F0:7C:7A:EA:E0:85:43:57:90:8B:70:DC:28:42:19:FB:DE:8C:1A:13:0E:58:FB:EC:33:8E:F6
+      - name: Trust LUKLU root CA
+        run: |
+          cat > /usr/local/share/ca-certificates/luklu-root-ca.crt <<'PEM'
+          -----BEGIN CERTIFICATE-----
+          MIIBkzCCATmgAwIBAgIQS/abd0bLCdBZV8DH72QVFTAKBggqhkjOPQQDAjAoMQ4w
+          DAYDVQQKEwVMVUtMVTEWMBQGA1UEAxMNTFVLTFUgUm9vdCBDQTAeFw0yNjA1MDEy
+          MDIwMzFaFw0zNjA0MjgyMDIwMzFaMCgxDjAMBgNVBAoTBUxVS0xVMRYwFAYDVQQD
+          Ew1MVUtMVSBSb290IENBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1sLOGWBh
+          cG/yXRwa0F1KX99UOBfvoN2cv/KLW9WcJWh0tjQJcONDMxeJaOVwN6dGNXeFTy0u
+          CU+yxzQRTA4PcKNFMEMwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8C
+          AQEwHQYDVR0OBBYEFNCASUWBmklefUK2sjYI60RmXj7oMAoGCCqGSM49BAMCA0gA
+          MEUCIA5+p1RX3m11LkFRO3x5z9IqIcl2D3350BcdkHK92YNvAiEAkoIMDQyxaQmP
+          a3Tyq8m6HI5ndMVEldNSonQ2S7XCBlA=
+          -----END CERTIFICATE-----
+          PEM
+          update-ca-certificates > /dev/null
+          echo "NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/luklu-root-ca.crt" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:

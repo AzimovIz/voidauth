@@ -71,7 +71,6 @@ export class UserComponent implements OnInit {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
-  private configService = inject(ConfigService)
 
   ngOnInit() {
     this.route.paramMap.subscribe(async (params) => {

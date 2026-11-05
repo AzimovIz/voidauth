@@ -9,8 +9,7 @@ import type { Flag } from '@shared/db/Flag'
 import appConfig from '../util/config'
 import { hasTOTP } from './totp'
 import { getUserPasskeys } from './passkey'
-import { getUserContacts } from './contacts'
-import type { UserContact } from '@shared/db/Contact'
+import { getUserContacts, whereVerified } from './contacts'
 import { argon2 } from '../util/argon2id'
 import zod from 'zod'
 import { createPasswordReset, getPasswordResetURL } from './passwordReset'
@@ -20,6 +19,7 @@ import { getGroupsCustomClaims, getUserCustomClaims } from './claims'
 import { calculateCustomClaims } from '@shared/user'
 import type { UsersResponse } from '@shared/api-response/admin/UsersResponse'
 import { escapeLikePattern } from './util'
+import { getAvatarUrl, getUploadedAssetByHash } from './avatar'
 
 export async function getUsers(
   options: {
@@ -89,47 +89,40 @@ export async function getUsers(
 }
 
 export async function getLDAPVisibleUsers(limit = 1000): Promise<Pick<User, 'id' | 'username' | 'name' | 'email'>[]> {
-  return (await db().table<User>(TABLES.USER).select(
+  const query = db().table<User>(TABLES.USER).select(
     db().ref('id').withSchema(TABLES.USER),
     db().ref('username').withSchema(TABLES.USER),
     db().ref('name').withSchema(TABLES.USER),
     db().ref('email').withSchema(TABLES.USER),
-  ).whereExists((w) => {
+  ).where((w) => {
     // Users that are admin are always returned
-    w.select('*')
-      .table<UserGroup>(TABLES.USER_GROUP)
-      .join<Group>(TABLES.GROUP, `${TABLES.USER_GROUP}.groupId`, `${TABLES.GROUP}.id`)
-      .where(`${TABLES.GROUP}.name`, ADMIN_GROUP)
-      .andWhereRaw('?? = ??', [`${TABLES.USER_GROUP}.userId`, `${TABLES.USER}.id`])
-  }).orWhere((w) => {
-    // Non-admin users are only returned if they are:
-    // non-expired
-    w.where((e) => {
-      e.where('expiresAt', '>', new Date())
-      e.orWhere({ expiresAt: null })
-    })
-
-    // approved (if approval is required)
-    if (appConfig.SIGNUP_REQUIRES_APPROVAL) {
-      w.andWhere('approved', true)
-    }
-
-    // email or contact verified (if verification is required)
-    if (appConfig.CONTACT_VERIFICATION.length) {
-      const contactTypes = appConfig.CONTACT_VERIFICATION.filter(t => t !== 'email')
-      w.andWhere((v) => {
-        if (appConfig.CONTACT_VERIFICATION.includes('email')) {
-          v.where('emailVerified', true)
-        }
-        if (contactTypes.length) {
-          v.orWhereExists(c => c.select('*')
-            .table<UserContact>(TABLES.USER_CONTACT)
-            .whereIn('type', contactTypes)
-            .andWhereRaw('?? = ??', [`${TABLES.USER_CONTACT}.userId`, `${TABLES.USER}.id`]))
-        }
+    w.whereExists((adminW) => {
+      adminW.select('*')
+        .table<UserGroup>(TABLES.USER_GROUP)
+        .join<Group>(TABLES.GROUP, `${TABLES.USER_GROUP}.groupId`, `${TABLES.GROUP}.id`)
+        .where(`${TABLES.GROUP}.name`, ADMIN_GROUP)
+        .andWhereRaw('?? = ??', [`${TABLES.USER_GROUP}.userId`, `${TABLES.USER}.id`])
+    }).orWhere((nonAdminW) => {
+      // Non-admin users are only returned if they are:
+      // non-expired
+      nonAdminW.where((e) => {
+        e.where('expiresAt', '>', new Date())
+        e.orWhere({ expiresAt: null })
       })
-    }
-  }).limit(limit)).map((u) => {
+
+      // approved (if approval is required)
+      if (appConfig.SIGNUP_REQUIRES_APPROVAL) {
+        nonAdminW.andWhere('approved', true)
+      }
+
+      // email or contact verified (if verification is required)
+      if (appConfig.CONTACT_VERIFICATION.length) {
+        nonAdminW.andWhere(whereVerified)
+      }
+    })
+  })
+
+  return (await query.limit(limit)).map((u) => {
     return {
       id: u.id,
       username: u.username,
@@ -164,8 +157,10 @@ export async function getUserById(id: string): Promise<UserDetails | undefined> 
   const contactTypes = (await getUserContacts(user.id)).map(c => c.type)
 
   const { passwordHash, ...userWithoutPassword } = user
+  const avatarUrl = user.avatarHash ? getAvatarUrl(await getUploadedAssetByHash(user.avatarHash)) : undefined
   return {
     ...userWithoutPassword,
+    avatarUrl,
     groups: groupsWithClaims,
     customClaims,
     hasMfaGroup, hasPasskeys, hasVerifyPasskeys, hasTotp, hasPassword: !!passwordHash, isAdmin, hasEmail: !!user.email, contactTypes }
@@ -212,6 +207,7 @@ export async function findAccount(_: KoaContextWithOIDC | null, id: string): Pro
         email_verified?: boolean
         preferred_username?: string
         name?: string | null
+        picture?: string
         groups?: string[]
       } = { sub: id }
       const scopes = new Set(scope.split(/\s+/).filter(Boolean))
@@ -233,6 +229,9 @@ export async function findAccount(_: KoaContextWithOIDC | null, id: string): Pro
       if (scopes.has('profile')) {
         accountClaims.preferred_username = user.username
         accountClaims.name = user.name
+        if (user.avatarUrl) {
+          accountClaims.picture = user.avatarUrl
+        }
       }
       if (scopes.has('email')) {
         accountClaims.email = user.email ?? null

@@ -16,6 +16,9 @@ import type { TOTPFailedAttempt } from '@shared/db/TOTPFailedAttempt'
 import type { ContactVerification } from '@shared/db/Contact'
 import { logger } from '../util/logger'
 import type { DeepWritable } from '@shared/utils'
+import type { ClientLogoAsset, UploadedAsset } from '@shared/db/Asset'
+import { deleteUnreferencedAsset } from './uploaded'
+import type { User } from '@shared/db/User'
 
 export async function clearAllExpiredEntries() {
   await db().delete().table<Key>(TABLES.KEY).where('expiresAt', '<', new Date())
@@ -31,9 +34,20 @@ export async function clearAllExpiredEntries() {
   await db().delete().table<ContactVerification>(TABLES.CONTACT_VERIFICATION).where('expiresAt', '<', new Date())
 }
 
+export async function deleteOrphanedAssets() {
+  const orphans = await db().select().table<UploadedAsset>(TABLES.UPLOADED_ASSET)
+    .whereNotIn('contentHash', db().select('uploadedHash').table<ClientLogoAsset>(TABLES.CLIENT_LOGO_ASSET))
+    .and.whereNotIn('contentHash', db().select('avatarHash').table<User>(TABLES.USER).whereNotNull('avatarHash'))
+    .and.whereNotIn('contentHash', db().select('avatarHash').table<Invitation>(TABLES.INVITATION).whereNotNull('avatarHash'))
+
+  for (const asset of orphans) {
+    await deleteUnreferencedAsset(asset.contentHash)
+  }
+}
+
 export type EncryptedTable = {
   id: string
-  value?: string
+  value: string
 }
 
 export async function updateEncryptedTables(enableWarnings: boolean = false) {
@@ -61,19 +75,23 @@ export async function updateEncryptedTables(enableWarnings: boolean = false) {
   }
 
   // Do the same for clients
-  const { locked: lockedClients, decryptable: decryptableClients } = checkEncrypted(
-    (await db().select().table<OIDCPayload>(TABLES.OIDC_PAYLOADS).where({ type: 'Client' })).map((p) => {
+  const clients = (await db().select().table<OIDCPayload>(TABLES.OIDC_PAYLOADS).where({ type: 'Client' }))
+    .reduce<(EncryptedTable & { payload: DeepWritable<ClientMetadata> })[]>((acc, p) => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const payload: DeepWritable<ClientMetadata> = JSON.parse(p.payload)
-      return {
-        id: p.id,
-        payload,
-        value: payload.client_secret,
+      if (payload.client_secret != null) {
+        acc.push({
+          id: p.id,
+          payload,
+          value: payload.client_secret,
+        })
       }
-    }))
+      return acc
+    }, [])
+  const { locked: lockedClients, decryptable: decryptableClients } = checkEncrypted(clients)
   // for those decryptable with STORAGE_KEY_SECONDARY, re-encrypt with STORAGE_KEY
   for (const k of decryptableClients) {
-    const client_secret = k.value != null ? encryptString(k.value) : k.value
+    const client_secret = encryptString(k.value)
     const payload = JSON.stringify({ ...k.payload, client_secret: client_secret })
     await db().table<OIDCPayload>(TABLES.OIDC_PAYLOADS).update({
       payload,
@@ -91,10 +109,13 @@ export async function updateEncryptedTables(enableWarnings: boolean = false) {
   }
 
   // Do the same for TOTPs
-  const { locked: lockedTOTPs, decryptable: decryptableTOTPs } = checkEncrypted(await db().select().table<TOTP>(TABLES.TOTP))
+  const { locked: lockedTOTPs, decryptable: decryptableTOTPs } = checkEncrypted((await db().select().table<TOTP>(TABLES.TOTP)).map(t => ({
+    id: t.id,
+    value: t.secret,
+  })))
   // for those decryptable with STORAGE_KEY_SECONDARY, re-encrypt with STORAGE_KEY
   for (const t of decryptableTOTPs) {
-    const secret = encryptString(t.secret)
+    const secret = encryptString(t.value)
     await db().table<TOTP>(TABLES.TOTP).update({
       secret: secret,
     }).where({ id: t.id })
@@ -124,9 +145,6 @@ function checkEncrypted<T extends EncryptedTable>(entries: T[]) {
 
   // find those that CAN be decrypted with STORAGE_KEY_SECONDARY
   const decryptable = stale.reduce<T[]>((d, s) => {
-    if (s.value == null) {
-      return d
-    }
     const value = decryptString(s.value, [appConfig.STORAGE_KEY_SECONDARY])
     if (value) {
       d.push({ ...s, value })

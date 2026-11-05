@@ -6,6 +6,7 @@ import * as psl from 'psl'
 import type { ClientResponse } from '@shared/api-response/ClientResponse.js'
 import Docker from 'dockerode'
 import { clientUpsertValidator } from '@shared/api-request/admin/ClientUpsert'
+import { urlFromWildcardHref } from '@shared/url'
 import zod from 'zod'
 import type { SecureVersion } from 'node:tls'
 import { randomBytes } from 'node:crypto'
@@ -28,6 +29,7 @@ class Config {
   CONTACT_VERIFICATION: VerificationContactType[] = [] // resolved from env after all config values are read
   MFA_REQUIRED: boolean = false
   DISABLE_FILE_UPLOADS: boolean = false
+  DISABLE_USER_AVATAR_UPLOADS: boolean = false
 
   APP_COLOR = '#906bc7'
   APP_FONT = ''
@@ -138,6 +140,7 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SIGNUP_REQUIRES_APPROVAL':
     case 'MFA_REQUIRED':
     case 'DISABLE_FILE_UPLOADS':
+    case 'DISABLE_USER_AVATAR_UPLOADS':
     case 'DB_SSL':
     case 'DB_SSL_VERIFICATION':
     case 'MIGRATE_TO_DB_SSL':
@@ -222,15 +225,19 @@ function refreshDeclaredClients(docker: Docker | undefined) {
       if (!containers) return
 
       for (const { Id } of containers) {
-        const info = await docker.getContainer(Id).inspect()
-        if (!info.State.Running || info.Config.Labels['voidauth.enable'] !== 'true') continue
+        try {
+          const info = await docker.getContainer(Id).inspect()
+          if (!info.State.Running || info.Config.Labels['voidauth.enable'] !== 'true') continue
 
-        for (const [rawKey, value] of Object.entries(info.Config.Labels)) {
-          const key = rawKey.toLowerCase()
-          if (!key.startsWith('voidauth.oidc.')) continue
-          const [, , client_id, variable] = key.split('.', 4)
-          if (!client_id || !variable) continue
-          registerClientVariable(clients, client_id, variable, value, 'label')
+          for (const [rawKey, value] of Object.entries(info.Config.Labels)) {
+            const key = rawKey.toLowerCase()
+            if (!key.startsWith('voidauth.oidc.')) continue
+            const [, , client_id, variable] = key.split('.', 4)
+            if (!client_id || !variable) continue
+            registerClientVariable(clients, client_id, variable, value, 'label')
+          }
+        } catch {
+          // Ignore errors
         }
       }
     })
@@ -318,9 +325,27 @@ function registerClientVariable(clients: Map<string, ClientResponse>,
       case 'CLIENT_GROUPS':
         client.groups = validateClientVar(value.split(',').map(v => v.trim()), clientUpsertValidator.groups)
         break
-      case 'CLIENT_REDIRECT_URLS':
-        client.redirect_uris = validateClientVar(value.split(',').map(v => v.trim()), clientUpsertValidator.redirect_uris)
+      case 'CLIENT_REDIRECT_URLS': {
+        const uris = validateClientVar(value.split(',').map(v => v.trim()), clientUpsertValidator.redirect_uris)
+        // Mirror the admin upsert route: a custom redirect scheme (e.g.
+        // myapp://callback) makes the client a native app, and mixing a
+        // custom scheme with http is rejected. Declared clients otherwise
+        // carry no application_type, defaulting to 'web' at flow time and
+        // failing custom-scheme redirect URLs.
+        let hasHttpProtocol = false
+        let hasCustomProtocol = false
+        for (const uri of uris) {
+          const protocol = urlFromWildcardHref(uri)?.protocol
+          hasHttpProtocol ||= protocol === 'http:'
+          hasCustomProtocol ||= (protocol !== 'http:' && protocol !== 'https:')
+        }
+        if (hasCustomProtocol && hasHttpProtocol) {
+          throw new Error('a client cannot mix custom-scheme and http redirect URLs')
+        }
+        client.redirect_uris = uris
+        client.application_type = hasCustomProtocol ? 'native' : 'web'
         break
+      }
       case 'CLIENT_RESPONSE_TYPES':
         client.response_types = validateClientVar(value.split(',').map(v => v.trim()), clientUpsertValidator.response_types)
         break

@@ -4,6 +4,8 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 import { db } from './db'
 import type { ClientLogoAsset, UploadedAsset } from '@shared/db/Asset'
+import type { Invitation } from '@shared/db/Invitation'
+import type { User } from '@shared/db/User'
 import { appUrl } from '../util/config'
 
 const uploadsPath = path.resolve('./config/uploads')
@@ -22,12 +24,12 @@ function generateFilePath(contentHash: string, extension: string) {
   return path.join(contentHash.slice(0, 2), contentHash, `${rando}.${extension}`)
 }
 
-function uploadAssetWebPath(filePath: string) {
-  return `/assets/uploads/${filePath.replaceAll('\\', '/')}`
-}
-
 export function getUploadedAssetWebUrl(filePath: string) {
-  return `${appUrl().href}${uploadAssetWebPath(filePath)}`
+  let href = appUrl().href
+  if (!href.endsWith('/')) {
+    href += '/'
+  }
+  return `${href}assets/uploads/${filePath.replaceAll('\\', '/')}`
 }
 
 function uploadedStoragePath(filePath: string) {
@@ -110,8 +112,10 @@ export async function readAsset(contentHash: string) {
 }
 
 export async function deleteUnreferencedAsset(contentHash: string) {
-  // Check if uploaded asset is unreferenced by tables that would
-  if (await db().select().table<ClientLogoAsset>(TABLES.CLIENT_LOGO_ASSET).where({ uploadedHash: contentHash }).first()) {
+  // Keep assets while any client logo or avatar references them.
+  if (await db().select().table<ClientLogoAsset>(TABLES.CLIENT_LOGO_ASSET).where({ uploadedHash: contentHash }).first()
+    || await db().select().table<User>(TABLES.USER).where({ avatarHash: contentHash }).first()
+    || await db().select().table<Invitation>(TABLES.INVITATION).where({ avatarHash: contentHash }).first()) {
     return
   }
   await deleteAsset(contentHash)

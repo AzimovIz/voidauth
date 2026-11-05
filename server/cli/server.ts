@@ -12,7 +12,7 @@ import { randomInt } from 'node:crypto'
 import { transaction, commit, rollback } from '../db/db'
 import { als } from '../util/als'
 import { sendAdminNotifications } from '../util/email'
-import { clearAllExpiredEntries, updateEncryptedTables } from '../db/tableMaintenance'
+import { clearAllExpiredEntries, deleteOrphanedAssets, updateEncryptedTables } from '../db/tableMaintenance'
 import { createInitialAdmin } from '../db/user'
 import { logger, purgeAsyncLog } from '../util/logger'
 import { sensitiveRateLimit, standardRateLimit } from '../util/rateLimit'
@@ -340,7 +340,7 @@ export async function serve() {
 
     // dynamically replace favicon and logo depending on whats available in config/branding
     const brandingFiles = fs.readdirSync(path.join('./config/branding'))
-    const backgroundPreferenceOrder = ['background.png', 'background.jpg', 'background.jpeg']
+    const backgroundPreferenceOrder = ['background.png', 'background.webp', 'background.jpg', 'background.jpeg']
     const backgroundFile = backgroundPreferenceOrder.find(file => brandingFiles.includes(file))
     const isBrandingLogo = brandingFiles.includes('logo.svg') || brandingFiles.includes('logo.png')
     const isBrandingFavicon = brandingFiles.includes('favicon.svg') || brandingFiles.includes('favicon.png')
@@ -387,6 +387,7 @@ export async function serve() {
       try {
         // Remove all expired data from db
         await clearAllExpiredEntries()
+        await deleteOrphanedAssets()
 
         // Update encrypted table values to the current STORAGE_KEY
         await updateEncryptedTables(initialRun)

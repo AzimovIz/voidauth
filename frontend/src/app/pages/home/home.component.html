@@ -8,6 +8,41 @@
 
   <mat-card-content>
     <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+      @let canUploadAvatar = config && !config.disableFileUploads && (!config.disableAvatarUploads || user?.isAdmin);
+      <div class="avatar-upload">
+        @if (avatarPreviewUrl(); as avatarUrl) {
+          <img class="user-avatar" [src]="avatarUrl" [alt]="'settings.sections.profile.avatar' | translate" />
+        } @else if (user?.avatarUrl && !removeAvatarSelected()) {
+          <img class="user-avatar" [src]="user.avatarUrl" [alt]="'settings.sections.profile.avatar' | translate" />
+        } @else {
+          <mat-icon class="user-avatar-placeholder" fontSet="material-icons-round">account_circle</mat-icon>
+        }
+        <input
+          #avatarFile
+          class="visually-hidden-file"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          [disabled]="!canUploadAvatar"
+          (change)="selectAvatar($event)"
+        />
+        <div class="avatar-actions">
+          @if (canUploadAvatar) {
+            <button mat-stroked-button type="button" (click)="avatarFile.click()">
+              <mat-icon fontSet="material-icons-round">upload</mat-icon>
+              {{
+                (user?.avatarUrl ? "settings.sections.profile.actions.replace-avatar" : "settings.sections.profile.actions.upload-avatar")
+                  | translate
+              }}
+            </button>
+          }
+          @if ((user?.avatarUrl && !removeAvatarSelected()) || selectedAvatar()) {
+            <button mat-button type="button" (click)="removeAvatar()">
+              {{ "settings.sections.profile.actions.remove-avatar" | translate }}
+            </button>
+          }
+        </div>
+      </div>
+
       <mat-form-field>
         <mat-label>{{ "settings.sections.profile.username.label" | translate }}</mat-label>
         <input matInput type="text" [value]="user?.username ?? ''" readonly disabled />
@@ -22,7 +57,11 @@
       </mat-form-field>
 
       <mat-card-actions>
-        <button mat-flat-button type="submit" [disabled]="!profileForm.enabled || !profileForm.valid || !profileForm.dirty">
+        <button
+          mat-flat-button
+          type="submit"
+          [disabled]="!profileForm.enabled || !profileForm.valid || (!profileForm.dirty && !selectedAvatar() && !removeAvatarSelected())"
+        >
           {{ "settings.sections.profile.actions.submit.label" | translate }}
         </button>
       </mat-card-actions>
@@ -99,47 +138,49 @@
         <mat-expansion-panel-header>
           <mat-panel-title>{{ "settings.sections.security.passkeys.manage.title" | translate }}</mat-panel-title>
         </mat-expansion-panel-header>
-        <table mat-table [dataSource]="passkeys" matSort>
-          @for (column of passkeyColumns; track column) {
-            <ng-container [matColumnDef]="column.columnDef">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>
-                {{ column.header | looseAsync }}
-              </th>
+        <div class="table-container">
+          <table mat-table [dataSource]="passkeys" matSort>
+            @for (column of passkeyColumns; track column) {
+              <ng-container [matColumnDef]="column.columnDef">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                  {{ column.header | looseAsync }}
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  @if (column.isIcon) {
+                    <mat-icon fontSet="material-icons-round">{{ column.cell(row) }}</mat-icon>
+                  } @else {
+                    {{ column.cell(row) }}
+                  }
+                </td>
+              </ng-container>
+            }
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let row">
-                @if (column.isIcon) {
-                  <mat-icon fontSet="material-icons-round">{{ column.cell(row) }}</mat-icon>
-                } @else {
-                  {{ column.cell(row) }}
-                }
+                <button
+                  mat-icon-button
+                  (click)="updatePasskey(row.id, row.displayName)"
+                  [matTooltip]="'settings.sections.security.passkeys.actions.edit.tooltip' | translate"
+                >
+                  <mat-icon fontSet="material-icons-round">edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  type="button"
+                  [disabled]="passkeys.data.length < 2 && !user?.hasPassword"
+                  (click)="deletePasskey(row.id)"
+                  [matTooltip]="'settings.sections.security.passkeys.actions.delete.tooltip' | translate"
+                >
+                  <mat-icon fontSet="material-icons-round">delete_forever</mat-icon>
+                </button>
               </td>
             </ng-container>
-          }
 
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let row">
-              <button
-                mat-icon-button
-                (click)="updatePasskey(row.id, row.displayName)"
-                [matTooltip]="'settings.sections.security.passkeys.actions.edit.tooltip' | translate"
-              >
-                <mat-icon fontSet="material-icons-round">edit</mat-icon>
-              </button>
-              <button
-                mat-icon-button
-                type="button"
-                [disabled]="passkeys.data.length < 2 && !user?.hasPassword"
-                (click)="deletePasskey(row.id)"
-                [matTooltip]="'settings.sections.security.passkeys.actions.delete.tooltip' | translate"
-              >
-                <mat-icon fontSet="material-icons-round">delete_forever</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedPasskeyColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedPasskeyColumns"></tr>
-        </table>
+            <tr mat-header-row *matHeaderRowDef="displayedPasskeyColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedPasskeyColumns"></tr>
+          </table>
+        </div>
       </mat-expansion-panel>
 
       <mat-divider class="disabled"></mat-divider>

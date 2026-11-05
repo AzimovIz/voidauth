@@ -2,6 +2,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { TABLES } from '@shared/db'
 import { TTLs } from '@shared/constants'
 import type { ContactType, ContactVerification, UserContact } from '@shared/db/Contact'
+import type { Knex } from 'knex'
+import appConfig from '../util/config'
 import { db } from './db'
 import { createExpiration } from './util'
 
@@ -84,4 +86,21 @@ export async function completeContactVerification(
   await db().table<UserContact>(TABLES.USER_CONTACT).insert(contact)
 
   return { contact }
+}
+
+/**
+ * Query condition on the user table: the user has a verified email or verified contact
+ * of a type allowed by CONTACT_VERIFICATION
+ */
+export function whereVerified(w: Knex.QueryBuilder) {
+  const contactTypes = appConfig.CONTACT_VERIFICATION.filter(t => t !== 'email')
+  if (appConfig.CONTACT_VERIFICATION.includes('email')) {
+    w.where('emailVerified', true)
+  }
+  if (contactTypes.length) {
+    w.orWhereExists(c => c.select('*')
+      .table<UserContact>(TABLES.USER_CONTACT)
+      .whereIn('type', contactTypes)
+      .andWhereRaw('?? = ??', [`${TABLES.USER_CONTACT}.userId`, `${TABLES.USER}.id`]))
+  }
 }

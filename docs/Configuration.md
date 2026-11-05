@@ -27,6 +27,7 @@ The available environment variables and their defaults are listed below:
 | EMAIL_VERIFICATION | `true` if SMTP_HOST is set, otherwise `false` | If true, users must have an email address and will get a verification email when changing their email address before it can be used. If you are using an email provider, this should probably be `true`. | | |
 | MFA_REQUIRED | `false` | If set to `true`, users must use a second security factor while logging in such as an Authenticator Token or Passkey | | |
 | DISABLE_FILE_UPLOADS | `false` | If set to `true`, all file uploads will be disabled throughout the application. | | |
+| DISABLE_USER_AVATAR_UPLOADS | `false` | If set to `true`, user avatar uploads specifically will be disabled. Admins will still be able to upload and manage user avatars. | | |
 | API_RATELIMIT  | `60` | Rate Limit for mutating (state-changing) requests per minute per IP address. Default is `60`, one per second. | | |
 | ENABLE_DEBUG  | `false` | Enables debug logging. ⚠️WARNING!⚠️ Detailed user activity will be printed in the logs. | | |
 
@@ -123,7 +124,7 @@ The logo and background images of the web interface can be customized by placing
 
 | Name | Extension |
 | :--- | :-------- |
-| background | `png`, `jpg` |
+| background | `png`, `webp`, `jpg` |
 | logo | `svg`, `png` |
 | favicon | `svg`, `png` |
 | apple-touch-icon | `png` |
@@ -158,4 +159,4 @@ Uploaded application assets are stored in the **/app/config/uploads** directory,
 
 ### Multi-Domain Protection
 
-You can secure multiple domains you own while maintaining a single set of user accounts by running multiple instances of VoidAuth using the same database. They should have the same **STORAGE_KEY** and **DB_\*** variables, but may otherwise have completely different configurations. The **APP_URL** variables of each would cover a different domain. If the domains you were trying to secure were `example.com` and `your-domain.net` you might set the **APP_URL** variables like `https://auth.example.com` and `https://id.your-domain.net`. These two instances would share everything in the shared DB, including users, OIDC Apps, ProxyAuth Domains, etc.
+You can secure multiple domains you own while maintaining a single set of user accounts by running multiple instances of VoidAuth using the same database. They should have the same **STORAGE_KEY** and **DB_\*** variables, but may otherwise have completely different configurations. The **APP_URL** variables of each would cover a different domain. If the domains you were trying to secure were `example.com` and `your-domain.net` you might set the **APP_URL** variables like `https://auth.example.com` and `https://id.your-domain.net`. These two instances would share everything in the shared DB, including users, OIDC Apps, ProxyAuth Domains, etc. You would also want to have a shared `app/config/uploads` mount point to ensure that uploaded files (user avatars, OIDC App logos) are accessible across all instances.

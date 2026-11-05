@@ -8,9 +8,8 @@ import { getCookieKeys, getJWKs, makeKeysValid } from '../db/key'
 import { interactionPolicy } from 'oidc-provider'
 import { isExpired, isUnapproved, loginFactors, type amrFactor } from '@shared/user'
 import { isUnverifiedUser } from '../util/auth'
-import { isMatch } from 'matcher'
 import assert from 'assert'
-import { wildcardRedirect } from '@shared/url'
+import { hrefIsWildcardMatch, wildcardRedirect } from '@shared/url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { getProxyAuthWithCache } from '../db/proxyAuth'
 import { RESPONSE_TYPES } from '@shared/api-request/admin/ClientUpsert'
@@ -577,7 +576,7 @@ async function createProvider(): Promise<Provider> {
 
     // Check if any client redirectUris are a wildcard match
     if (this.redirectUris?.some((r: string) => {
-      return r.includes('*') && isMatch(redirectUri, r)
+      return r.includes('*') && hrefIsWildcardMatch(r, redirectUri)
     })) {
       return true
     }
@@ -588,7 +587,7 @@ async function createProvider(): Promise<Provider> {
   nextProvider.Client.prototype.postLogoutRedirectUriAllowed = function newPostLogoutRedirectUriAllowed(postLogoutRedirectUri: string) {
     // Check if any client postLogoutRedirectUris are a wildcard match
     if (this.postLogoutRedirectUris?.some((r: string) => {
-      return r.includes('*') && isMatch(postLogoutRedirectUri, r)
+      return r.includes('*') && hrefIsWildcardMatch(r, postLogoutRedirectUri)
     })) {
       return true
     }

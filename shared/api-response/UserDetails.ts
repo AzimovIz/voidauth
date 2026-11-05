@@ -14,6 +14,7 @@ export type UserWithAdminIndicator = UserWithoutPassword & {
 }
 
 export type UserDetails = UserWithAdminIndicator & {
+  avatarUrl?: string
   groups: {
     id: Group['id']
     name: Group['name']
@@ -50,6 +51,7 @@ export type CurrentUserPrivateDetails = UserDetails & UserSessionInfo
 export type CurrentUserDetails = OnlyKeys<
   UserDetails,
   'id' | 'isAdmin' | 'mfaRequired' | 'hasTotp'
-  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail' | 'emailVerified' | 'expiresAt' | 'approved' | 'skipPasskeyPrompt'
+  | 'hasPasskeys' | 'hasVerifyPasskeys' | 'hasEmail'
+  | 'emailVerified' | 'expiresAt' | 'approved' | 'skipPasskeyPrompt'
   | 'contactTypes'>
   & UserSessionInfo

@@ -10,6 +10,7 @@ export type ConfigResponse = {
   telegramActive: boolean
   registration: boolean
   disableFileUploads: boolean
+  disableAvatarUploads: boolean
   contactEmail?: string
   defaultRedirect?: string
 }

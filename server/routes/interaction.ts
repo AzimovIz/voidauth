@@ -63,6 +63,7 @@ import { checkCanLogin,
 import { TABLES } from '@shared/db'
 import type { InvitationCustomClaim, UserCustomClaim } from '@shared/db/CustomClaim'
 import { updatePasskeyPromptValidator } from '@shared/api-request/UpdatePasskeyPrompt'
+import { transferInvitationAvatar } from '../db/avatar'
 
 export const router = Router()
 
@@ -452,6 +453,7 @@ router.post('/register',
     }
 
     if (invitationValid) {
+      await transferInvitationAvatar(invitation.id, user.id)
       await db().table<Invitation>(TABLES.INVITATION).delete().where({ id: invitation.id })
     }
 
@@ -620,6 +622,7 @@ router.post('/register/passkey/end',
     }
 
     if (invitationValid) {
+      await transferInvitationAvatar(invitation.id, user.id)
       await db().table<Invitation>(TABLES.INVITATION).delete().where({ id: invitation.id })
     }
 

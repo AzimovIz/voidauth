@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, inject, type OnInit, ChangeDetectionStrategy } from '@angular/core'
+import { Component, inject, signal, type OnInit, ChangeDetectionStrategy } from '@angular/core'
 import { ReactiveFormsModule, FormControl, FormGroup, Validators } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { MaterialModule } from '../../../../material-module'
@@ -32,6 +32,10 @@ import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 export class UserComponent implements OnInit {
   public me?: CurrentUserDetails
   public id: string | null = null
+  public avatarUrl?: string
+  public selectedAvatar = signal<File | null>(null)
+  public avatarPreviewUrl = signal<string | null>(null)
+  public removeAvatarSelected = signal(false)
   public contactTypes: UserDetails['contactTypes'] = []
   public config?: ConfigResponse
 
@@ -59,6 +63,7 @@ export class UserComponent implements OnInit {
   })
 
   private adminService = inject(AdminService)
+  private configService = inject(ConfigService)
   private translateService = inject(TranslateService)
   private userService = inject(UserService)
   private route = inject(ActivatedRoute)
@@ -83,6 +88,10 @@ export class UserComponent implements OnInit {
         }
 
         const user = await this.adminService.user(this.id)
+        this.clearAvatarPreview()
+        this.selectedAvatar.set(null)
+        this.removeAvatarSelected.set(false)
+        this.avatarUrl = user.avatarUrl
         this.contactTypes = user.contactTypes
 
         this.form.reset({
@@ -257,12 +266,56 @@ export class UserComponent implements OnInit {
       this.spinnerService.show()
 
       await this.adminService.updateUser({ ...values, username, id: this.id })
+      const selectedAvatar = this.selectedAvatar()
+      if (selectedAvatar) {
+        const response = await this.adminService.uploadUserAvatar(this.id, selectedAvatar)
+        this.avatarUrl = response.avatarUrl
+      } else if (this.removeAvatarSelected()) {
+        await this.adminService.deleteUserAvatar(this.id)
+        this.avatarUrl = undefined
+      }
+      this.clearAvatarPreview()
+      this.selectedAvatar.set(null)
+      this.removeAvatarSelected.set(false)
+      this.form.markAsPristine()
       this.snackbarService.message(String(this.translateService.instant('admin.user.messages.updated')))
     } catch (_e) {
       this.snackbarService.error(String(this.translateService.instant('admin.user.messages.update-failed')))
     } finally {
       this.spinnerService.hide()
     }
+  }
+
+  selectAvatar(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) {
+      return
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      this.snackbarService.error(String(this.translateService.instant('admin.common.avatar.messages.invalid-file')))
+      return
+    }
+
+    this.clearAvatarPreview()
+    this.selectedAvatar.set(file)
+    this.removeAvatarSelected.set(false)
+    const reader = new FileReader()
+    reader.onload = () => {
+      this.avatarPreviewUrl.set(typeof reader.result === 'string' ? reader.result : null)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  removeAvatar() {
+    this.clearAvatarPreview()
+    this.selectedAvatar.set(null)
+    this.removeAvatarSelected.set(!!this.avatarUrl)
+  }
+
+  private clearAvatarPreview() {
+    this.avatarPreviewUrl.set(null)
   }
 
   async signout() {

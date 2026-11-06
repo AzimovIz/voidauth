@@ -28,6 +28,7 @@ Telegram работает **в дополнение** к email и не треб�
 | --- | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | | Токен бота от BotFather. Без него Telegram выключен, и кнопки Telegram в интерфейсе не показываются. |
 | `TELEGRAM_RETRY_COUNT` | `5` | Сколько раз повторять отправку сообщения при сетевой ошибке, ответе 429 (слишком много запросов) или 5xx от Telegram. `0` — без повторов. Полезно, если доступ к Telegram нестабилен. |
+| `TELEGRAM_PROXY` | | SOCKS-прокси для запросов к Telegram, например `socks5h://user:password@proxy.example.com:1080`. Нужен, если `api.telegram.org` недоступен напрямую. Подробнее ниже. |
 | `CONTACT_VERIFICATION` | как `EMAIL_VERIFICATION` | Какими контактами пользователь может подтвердить аккаунт. Подробнее ниже. |
 
 Пример для `docker compose`:
@@ -41,8 +42,19 @@ services:
       STORAGE_KEY: ...
       DB_PASSWORD: ...
       TELEGRAM_BOT_TOKEN: 123456789:AA...
+      TELEGRAM_PROXY: socks5h://user:password@proxy.example.com:1080 # если нужен
       CONTACT_VERIFICATION: telegram
 ```
+
+### Прокси
+
+Если Telegram заблокирован в вашей сети, задайте `TELEGRAM_PROXY`. Через прокси идут только запросы к Telegram, остальной трафик VoidAuth идёт напрямую.
+
+- Поддерживаются `socks5h://`, `socks5://`, `socks4a://`, `socks4://` и `socks://` (то же, что `socks5h`). HTTP-прокси не поддерживаются.
+- Используйте `socks5h://`: тогда адрес `api.telegram.org` определяет прокси, а не ваш DNS. Это важно, если DNS тоже блокирует или подменяет адрес. С `socks5://` адрес определяется локально.
+- Логин и пароль необязательны: `socks5h://proxy.example.com:1080`.
+- Специальные символы в логине и пароле нужно закодировать как в URL: `@` → `%40`, `:` → `%3A`, `/` → `%2F`, `#` → `%23`, `%` → `%25`. Например, пароль `p@ss` записывается как `socks5h://user:p%40ss@proxy.example.com:1080`.
+- Если в строке ошибка или указан неподдерживаемый протокол, VoidAuth не запустится и напишет об этом в лог. Само значение в лог не выводится, потому что в нём пароль.
 
 ### 3. Проверьте запуск
 
@@ -52,13 +64,16 @@ services:
 Telegram bot connected as @<username бота>.
 ```
 
+Если задан `TELEGRAM_PROXY`, в конце строки будет `through TELEGRAM_PROXY`.
+
 Возможные ошибки в логах:
 
 | Сообщение | Что значит |
 | --- | --- |
 | `Telegram bot token was rejected, check TELEGRAM_BOT_TOKEN. Telegram is disabled.` | Неверный или отозванный токен. Telegram выключается до перезапуска. |
 | `Telegram polling conflict, the bot has a webhook set or is used by another running instance.` | Этот же токен использует другой процесс (второй экземпляр VoidAuth или другая программа) или у бота включён webhook. На один токен — один запущенный VoidAuth. Webhook снимается запросом `https://api.telegram.org/bot<токен>/deleteWebhook`. |
-| `Telegram polling failed.` | Нет связи с Telegram. VoidAuth повторяет попытку каждые 15 секунд. |
+| `Telegram polling failed.` | Нет связи с Telegram или с прокси. VoidAuth повторяет попытку каждые 15 секунд. |
+| `Telegram polling failed.` с `Socks5 Authentication failed` | Прокси не принял логин или пароль из `TELEGRAM_PROXY`. Проверьте, закодированы ли специальные символы. |
 
 ## Подтверждение аккаунта: `CONTACT_VERIFICATION`
 
@@ -121,6 +136,6 @@ Telegram bot connected as @<username бота>.
 
 - Бот работает только в личных чатах. Сообщения из групп и каналов игнорируются.
 - Если пользователь заблокировал бота, сообщения ему не доставляются. Повторно они не отправляются, ошибка пишется в лог.
-- Если Telegram в вашей сети работает нестабильно, увеличьте `TELEGRAM_RETRY_COUNT`. Повторы задерживают ответ на запрос, например на сброс пароля, пока сообщение не будет отправлено или попытки не закончатся.
+- Если Telegram в вашей сети заблокирован, задайте `TELEGRAM_PROXY`. Если он работает нестабильно, увеличьте `TELEGRAM_RETRY_COUNT`. Повторы задерживают ответ на запрос, например на сброс пароля, пока сообщение не будет отправлено или попытки не закончатся.
 - Текст сообщений бота пока только на английском.
 - Токен бота не выводится в логи и сообщения об ошибках. Если он всё же утёк, отзовите его в BotFather (`/revoke`) и задайте новый в `TELEGRAM_BOT_TOKEN`.

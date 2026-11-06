@@ -81,6 +81,7 @@ class Config {
   // Telegram
   TELEGRAM_BOT_TOKEN?: string
   TELEGRAM_RETRY_COUNT: number = 5
+  TELEGRAM_PROXY?: string // proxy for Telegram API requests, ex. socks5h://user:pass@host:1080
 
   // LDAP
   LDAP_ENABLED: boolean = false
@@ -176,6 +177,7 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SMTP_PASS':
     case 'SMTP_TLS_CIPHERS':
     case 'TELEGRAM_BOT_TOKEN':
+    case 'TELEGRAM_PROXY':
     case 'LDAP_BIND_PASSWORD':
     case 'LDAP_TLS_CERT_FILE':
     case 'LDAP_TLS_KEY_FILE':
@@ -386,6 +388,8 @@ function maskString(input: string | undefined) {
   }
   return '***'
 }
+
+const TELEGRAM_PROXY_PROTOCOLS = ['socks4:', 'socks4a:', 'socks5:', 'socks5h:', 'socks:']
 
 // functions to help format config
 function isContactTypeConfigured(type: VerificationContactType) {
@@ -660,6 +664,24 @@ if (unconfiguredContactTypes.length) {
     level: 'error',
     message: `CONTACT_VERIFICATION includes contact types that are not configured: ${unconfiguredContactTypes.join(', ')}.`,
   })
+}
+
+// Make sure TELEGRAM_PROXY, if set, is a supported proxy url. Do not log the value, it may contain a password.
+if (appConfig.TELEGRAM_PROXY) {
+  let protocol: string | undefined
+  try {
+    protocol = new URL(appConfig.TELEGRAM_PROXY).protocol
+  } catch {
+    protocol = undefined
+  }
+  if (!protocol || !TELEGRAM_PROXY_PROTOCOLS.includes(protocol)) {
+    logger({
+      level: 'error',
+      message: 'TELEGRAM_PROXY must be a url like socks5://user:password@host:port. '
+        + `Supported protocols are: ${TELEGRAM_PROXY_PROTOCOLS.map(p => p.replace(':', '')).join(', ')}.`,
+    })
+    exit(1)
+  }
 }
 
 // If SMTP_NOAUTH is true, check that SMTP_USER and SMTP_PASS are not set

@@ -1,3 +1,5 @@
+import { request, type Agent } from 'node:https'
+import { SocksProxyAgent } from 'socks-proxy-agent'
 import appConfig from '../util/config'
 import { logger, purgeAsyncLog } from '../util/logger'
 import { als } from '../util/als'
@@ -56,16 +58,55 @@ export function isTelegramActive() {
   return !!botUsername
 }
 
+// Agent for requests through TELEGRAM_PROXY, created on first use
+let proxyAgent: Agent | undefined
+
+function telegramAgent() {
+  if (appConfig.TELEGRAM_PROXY && !proxyAgent) {
+    proxyAgent = new SocksProxyAgent(appConfig.TELEGRAM_PROXY)
+  }
+  return proxyAgent
+}
+
+/**
+ * POST a json body and parse the json response.
+ * Uses node:https rather than fetch, because fetch can not use a socks proxy.
+ */
+async function postJson(url: string, body: unknown, timeout: number): Promise<unknown> {
+  const data = JSON.stringify(body)
+  return await new Promise((resolve, reject) => {
+    const req = request(url, {
+      method: 'POST',
+      agent: telegramAgent(),
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+    }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (chunk: Buffer) => chunks.push(chunk))
+      res.on('error', reject)
+      res.on('end', () => {
+        clearTimeout(timer)
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
+        } catch {
+          reject(new Error(`Telegram returned an invalid response (HTTP ${String(res.statusCode)}).`))
+        }
+      })
+    })
+    const timer = setTimeout(() => req.destroy(new Error('Telegram request timed out.')), timeout * 1000)
+    req.on('error', (e) => {
+      clearTimeout(timer)
+      reject(e)
+    })
+    req.end(data)
+  })
+}
+
 async function callTelegram<T>(method: string, params: Record<string, unknown> = {}, timeout = 10): Promise<T> {
   // Do not include the request url in errors, it contains the bot token
-  const res = await fetch(`${TELEGRAM_API}/bot${appConfig.TELEGRAM_BOT_TOKEN ?? ''}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-    signal: AbortSignal.timeout(timeout * 1000),
-  })
-
-  const body = await res.json() as TelegramResult<T>
+  const body = await postJson(`${TELEGRAM_API}/bot${appConfig.TELEGRAM_BOT_TOKEN ?? ''}/${method}`, params, timeout) as TelegramResult<T>
   if (!body.ok) {
     throw new TelegramError(method, body.error_code, body.description, body.parameters?.retry_after)
   }
@@ -210,7 +251,11 @@ async function poll() {
       if (!botUsername) {
         const me = await callTelegram<TelegramUser>('getMe')
         botUsername = me.username
-        logger({ level: 'info', message: `Telegram bot connected as @${me.username ?? me.first_name}.` })
+        logger({
+          level: 'info',
+          message: `Telegram bot connected as @${me.username ?? me.first_name}`
+            + `${appConfig.TELEGRAM_PROXY ? ' through TELEGRAM_PROXY' : ''}.`,
+        })
       }
 
       const updates = await callTelegram<TelegramUpdate[]>('getUpdates', {
